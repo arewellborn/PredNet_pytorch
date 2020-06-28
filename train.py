@@ -106,8 +106,8 @@ def train(model, args):
         input_shape = (args.batch_size, args.num_timeSteps, img_height, img_width, n_channels)
 
     optimizer = torch.optim.Adam(prednet.parameters(), lr = args.lr)
-    lr_maker  = lr_scheduler.StepLR(optimizer = optimizer, step_size = 75, gamma = 0.1)  # decay the lr every 50 epochs by a factor of 0.1
-
+    lr_lambda_func = lambda epoch: 1 if epoch < 75 else 0.1
+    lr_maker = lr_scheduler.LambdaLR(optimizer=optimizer, lr_lambda=lr_lambda_func)
     printCircle = args.printCircle
     for e in range(args.epochs):
         tr_loss = 0.0
