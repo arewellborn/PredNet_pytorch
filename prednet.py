@@ -251,7 +251,7 @@ class PredNet(nn.Module):
                 elif item == 'A':
                     if self.isNotTopestLayer(lay):   # 这里只是控制一下层数(比其他如Ahat等少一层)
                         # NOTE: 这里是从第二层(lay = 1)开始构建A的(因为整个网络的最低一层(layer0)的A就是原始图像(可以将layer0的A视为一个`恒等层`, 即输入图像, 输出原封不动的图像))
-                        in_channels = self.R_stack_sizes[lay] * 2   # A卷积层输入特征数(in_channels)是对应层E的特征数,E包含(Ahat-A)和(A-Ahat)两部分,故x2. [从paper的Fig.1左图来看, E是Ahat的输出和A进行相减, 之后拼接.]
+                        in_channels = self.stack_sizes[lay] * 2   # A卷积层输入特征数(in_channels)是对应层E的特征数,E包含(Ahat-A)和(A-Ahat)两部分,故x2. [从paper的Fig.1左图来看, E是Ahat的输出和A进行相减, 之后拼接.]
                         self.conv_layers['A'].append(nn.Conv2d(in_channels = in_channels,
                                                                out_channels = self.stack_sizes[lay + 1],
                                                                kernel_size = self.A_filter_sizes[lay],
