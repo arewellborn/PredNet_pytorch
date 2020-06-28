@@ -60,6 +60,8 @@ class SequenceGenerator(data.Dataset):
         self.num_timeSteps = num_timeSteps
         self.shuffle = shuffle
         self.seed = seed
+        if seed:
+            np.random.seed(seed)
         assert output_mode in {'error', 'prediction'}
         self.output_mode = output_mode
         assert sequence_start_mode in {'all', 'unique'}
