@@ -55,7 +55,7 @@ def batch_flatten(x):
 
 class PredNet(nn.Module):
     """
-    PredNet realized by zcr.
+    PredNet realized by zcr and modified by arewellborn.
     
     Args:
         stack_sizes:
@@ -210,46 +210,12 @@ class PredNet(nn.Module):
                     output_shape = (-1, stack_size, row, col)
                 else:
                     output_shape = (-1, row, col, stack_size)
-                # initial_state = torch.from_numpy(np.reshape(initial_state, output_shape)).float().cuda()
                 initial_state = Variable(torch.from_numpy(np.reshape(initial_state, output_shape)).float().cuda(), requires_grad = True)
                 initial_states += [initial_state]
 
         if self.extrap_start_time is not None:
-            # initial_states += [torch.IntTensor(1).zero_().cuda()]   # the last state will correspond to the current timestep
             initial_states += [Variable(torch.IntTensor(1).zero_().cuda())]   # the last state will correspond to the current timestep
         return initial_states
-
-
-    # def compute_output_shape(self, input_shape):
-    #     if self.output_mode == 'prediction':
-    #         out_shape = input_shape[2:]
-    #     elif self.output_mode == 'error':   # error模式输出为各层误差,每层一个标量
-    #         out_shape = (self.num_layers,)
-    #     elif self.output_mode == 'all':
-    #         out_shape = (np.prod(input_shape[2:]) + self.num_layers,)   # np.prod 元素逐个相乘
-    #     else:
-    #         if self.output_layer_type == 'R':
-    #             stack_str = 'R_stack_sizes'
-    #         else:
-    #             stack_str = 'stack_sizes'
-
-    #         if self.output_layer_type == 'E':
-    #             stack_multi = 2
-    #         else:
-    #             stack_multi = 1
-
-    #         out_stack_size = stack_multi * getattr(self, stack_str)[self.output_layer_NO]
-    #         layer_out_row = input_shape[self.row_axis] / (2 ** self.output_layer_NO)
-    #         layer_out_col = input_shape[self.col_axis] / (2 ** self.output_layer_NO)
-    #         if self.data_format == 'channels_first':
-    #             out_shape = (out_stack_size, layer_out_row, layer_out_col)
-    #         else:
-    #             out_shape = (layer_out_row, layer_out_col, out_stack_size)
-
-    #         if self.return_sequences:
-    #             return (input_shape[0], input_shape[1]) + out_shape    # input_shape[1] is the timesteps
-    #         else:
-    #             return (input_shape[0],) + out_shape
 
 
     def isNotTopestLayer(self, layerIndex):
@@ -303,10 +269,7 @@ class PredNet(nn.Module):
                     in_channels = self.stack_sizes[lay] * 2 + self.R_stack_sizes[lay]
                     if self.isNotTopestLayer(lay):
                         in_channels += self.R_stack_sizes[lay + 1]
-                    # for j in lstm_list:     # 严重的bug! 赶紧注释掉...下面的向前缩进4个空格...
                     # LSTM中的i,f,c,o的非线性激活函数层放在forward中实现. (因为这里i,f,o要用hard_sigmoid函数, Keras中LSTM默认就是hard_sigmoid, 但是pytorch中需自己实现)
-                    # act = self.LSTM_activation if j == 'c' else self.LSTM_inner_activation
-                    # act = get_activationFunc(act)
                     self.conv_layers[item].append(nn.Conv2d(in_channels = in_channels,
                                                          out_channels = self.R_stack_sizes[lay],
                                                          kernel_size = self.R_filter_sizes[lay],
