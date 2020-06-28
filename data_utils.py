@@ -28,6 +28,10 @@ class SequenceGenerator(data.Dataset):
             e.g., '/media/sdb1/chenrui/kitti_data/h5/sources_train.h5'
             source for each image so when creating sequences can assure that consecutive frames are from same video.
                 the content is like: 'road-2011_10_03_drive_0047_sync'
+            Note: Sources might also need to take into account whether there are any breaks in continuity in the
+                video images. For a discontinuous jump in the video, appending a counter to the source indicating 
+                that a break happened can solve this. i.e. 'road-2011_10_03_drive_0047_sync_1', 
+                'road-2011_10_03_drive_0047_sync_2', etc.
         - num_timeSteps:
             number of timesteps to predict
         - seed:
