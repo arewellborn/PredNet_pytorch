@@ -149,7 +149,7 @@ def train(model, args):
     # print('layer_loss_weightsMode: ', args.layer_loss_weightsMode)
     prednet = model
     # frame data files
-    DATA_DIR = args.dataPath
+    DATA_DIR = args.data_dir
     train_file = os.path.join(DATA_DIR, "X_train.h5")
     train_sources = os.path.join(DATA_DIR, "sources_train.h5")
     val_file = os.path.join(DATA_DIR, "X_val.h5")
@@ -290,46 +290,9 @@ def saveCheckpoint(zcr_state_dict, output_data_dir):
     torch.save(zcr_state_dict, fileName)
 
 
-def model_fn(
-    model_dir,
-    stack_sizes,
-    R_stack_sizes,
-    A_filter_sizes,
-    Ahat_filter_sizes,
-    R_filter_sizes,
-    data_format,
-):
-    """load model function for SageMaker"""
-    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    model = PredNet(
-        stack_sizes,
-        R_stack_sizes,
-        A_filter_sizes,
-        Ahat_filter_sizes,
-        R_filter_sizes,
-        output_mode="prediction",
-        data_format=data_format,
-    )
-    with open(os.path.join(model_dir, "model.pth"), "rb") as f:
-        model.load_state_dict(torch.load(f))
-    return model.to(device)
-
-
 if __name__ == "__main__":
     args = arg_parse()
     print_args(args)
-
-    # DATA_DIR = args.dataPath
-    # data_file = os.path.join(DATA_DIR, 'X_test.h5')
-    # source_file = os.path.join(DATA_DIR, 'sources_test.h5')
-    # output_mode = 'error'
-    # sequence_start_mode = 'all'
-    # N_seq = None
-    # dataLoader = ZcrDataLoader(data_file, source_file, output_mode, sequence_start_mode, N_seq, args).dataLoader()
-
-    # images, target = next(iter(dataLoader))
-    # print(images)
-    # print(target)
 
     n_channels = args.n_channels
     img_height = args.img_height
