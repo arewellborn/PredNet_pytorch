@@ -132,15 +132,12 @@ def train(model, args):
                 layer_weights = np.array([0. for _ in range(num_layer)])
                 layer_weights[0] = 1.
                 layer_weights = torch.from_numpy(layer_weights)
-                # layer_weights = torch.from_numpy(np.array([1., 0., 0., 0.]))
-            elif args.layer_loss_weightsMode == 'L_all':    # e.g., [1., 1., 1., 1.]
+            elif args.layer_loss_weightsMode == 'L_all':    # e.g., [1., 0.1, 0.1, 0.1]
                 layer_weights = np.array([0.1 for _ in range(num_layer)])
                 layer_weights[0] = 1.
                 layer_weights = torch.from_numpy(layer_weights)
-                # layer_weights = torch.from_numpy(np.array([1., 0.1, 0.1, 0.1]))
             else:
                 raise(RuntimeError('Unknown loss weighting mode! Please use `L_0` or `L_all`.'))
-            # layer_weights = Variable(layer_weights.float().cuda(), requires_grad = False)  # NOTE: layer_weights默认是DoubleTensor, 而下面的error是FloatTensor的Variable, 如果直接相乘会报错!
             layer_weights = Variable(layer_weights.float().cuda())  # NOTE: layer_weights默认是DoubleTensor, 而下面的error是FloatTensor的Variable, 如果直接相乘会报错!
             error_list = [batch_x_numLayer__error * layer_weights for batch_x_numLayer__error in output]    # 利用广播实现加权
 
@@ -160,17 +157,6 @@ def train(model, args):
             optimizer.zero_grad()
             loss.backward()
             optimizer.step()
-
-            # if (step + 1) == 2500:
-            #     zcr_state_dict = {
-            #         'epoch'     : (e + 1),
-            #         'tr_loss'   : 0,
-            #         'state_dict': prednet.state_dict(),
-            #         'optimizer' : optimizer.state_dict()
-            #     }
-            #     saveCheckpoint(zcr_state_dict)
-
-            # print('epoch: [%3d/%3d] | step: [%4d/%4d]  loss: %.4f' % ((e + 1), args.epochs, (step + 1), len(dataLoader), loss.data[0]))
 
             tr_loss += loss.data[0]
             sum_trainLoss_in_epoch += loss.data[0]
