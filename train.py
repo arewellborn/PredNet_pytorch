@@ -25,17 +25,13 @@ def arg_parse():
 
     parser.add_argument('--mode', default = 'train', type = str,
                         help = 'train or evaluate (default: train)')
-    parser.add_argument('--dataPath', default = '', type = str, metavar = 'PATH',
-                        help = 'path to video dataset (default: none)')
-    parser.add_argument('--checkpoint_savePath', default = '', type = str, metavar = 'PATH',
-                        help = 'path for saving checkpoint file (default: none)')
     parser.add_argument('--epochs', default = 20, type = int, metavar='N',
                         help = 'number of total epochs to run')
     parser.add_argument('--batch_size', default = 32, type = int, metavar = 'N',
                         help = 'The size of batch')
     parser.add_argument('--optimizer', default = 'SGD', type = str,
                         help = 'which optimizer to use')
-    parser.add_argument('--lr', default = 0.01, type = float,
+    parser.add_argument('--lr', default = 0.001, type = float,
                         metavar = 'LR', help = 'initial learning rate')
     parser.add_argument('--momentum', default = 0.9, type = float,
                         help = 'momentum for SGD')
@@ -45,8 +41,6 @@ def arg_parse():
                         help = 'beta2 in Adam optimizer')
     parser.add_argument('--workers', default = 4, type = int, metavar = 'N',
                         help = 'number of data loading workers (default: 4)')
-    parser.add_argument('--checkpoint_file', default = '', type = str,
-                        help = 'path to checkpoint file for restrating (default: none)')
     parser.add_argument('--printCircle', default = 100, type = int, metavar = 'N',
                         help = 'how many steps to print the loss information')
     parser.add_argument('--data_format', default = 'channels_last', type = str,
@@ -73,6 +67,14 @@ def arg_parse():
                         help = 'number of timesteps used for sequences in training (default: 10)')
     parser.add_argument('--shuffle', default = True, type = bool,
                         help = 'shuffle or not')
+
+    # Container environment
+    parser.add_argument('--hosts', type=list, default=json.loads(os.environ['SM_HOSTS']))
+    parser.add_argument('--current-host', type=str, default=os.environ['SM_CURRENT_HOST'])
+    parser.add_argument('--model-dir', type=str, default=os.environ['SM_MODEL_DIR'])
+    parser.add_argument('--data-dir', type=str, default=os.environ['SM_CHANNEL_TRAINING'])
+    parser.add_argument('--num-gpus', type=int, default=os.environ['SM_NUM_GPUS'])
+    parser.add_argument('--output-data-dir', type=str, default=os.environ['SM_OUTPUT_DATA_DIR'])
     
     args = parser.parse_args()
     return args
@@ -175,18 +177,26 @@ def train(model, args):
                 'state_dict': prednet.state_dict(),
                 'optimizer' : optimizer.state_dict()
             }
-            saveCheckpoint(zcr_state_dict)
+            saveCheckpoint(zcr_state_dict, output_data_dir)
 
 
-def saveCheckpoint(zcr_state_dict, fileName = './checkpoint/checkpoint_newest.pkl'):
+def saveCheckpoint(zcr_state_dict, output_data_dir):
     '''save the checkpoint for both restarting and evaluating.'''
-    tr_loss  = '%.4f' % zcr_state_dict['tr_loss']
-    # val_loss = '%.4f' % zcr_state_dict['val_loss']
     epoch = zcr_state_dict['epoch']
-    # fileName = './checkpoint/checkpoint_epoch' + str(epoch) + '_trLoss' + tr_loss + '_valLoss' + val_loss + '.pkl'
-    fileName = '/media/sdb1/chenrui/checkpoint/PredNet/checkpoint_epoch' + str(epoch) + '_trLoss' + tr_loss + '.pkl'
+    fileName = f'checkpoint-{epoch}'
+    os.path.join(output_data_dir, )
     torch.save(zcr_state_dict, fileName)
 
+
+def model_fn(model_dir, stack_sizes, R_stack_sizes, 
+        A_filter_sizes, Ahat_filter_sizes, R_filter_sizes, data_format):
+    '''load model function for SageMaker'''
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    model = PredNet(stack_sizes, R_stack_sizes, A_filter_sizes, Ahat_filter_sizes, R_filter_sizes,
+                    output_mode = 'prediction', data_format=data_format, return_sequences = True)
+    with open(os.path.join(model_dir, 'model.pth'), 'rb') as f:
+        model.load_state_dict(torch.load(f))
+    return model.to(device)
 
 
 if __name__ == '__main__':
