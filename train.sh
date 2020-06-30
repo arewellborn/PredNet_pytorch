@@ -7,9 +7,9 @@ echo "Train..."
 mode='train'
 
 # @200.121
-DATA_DIR='/media/sdb1/chenrui/kitti_data/h5/'
-checkpoint_savePath='./checkpoint/'
-checkpoint_file='./checkpoint/'	# checkpoint file name for restarting.
+#DATA_DIR='/media/sdb1/chenrui/kitti_data/h5/'
+#checkpoint_savePath='./checkpoint/'
+#checkpoint_file='./checkpoint/'	# checkpoint file name for restarting.
 
 epochs=1
 batch_size=8
@@ -27,8 +27,8 @@ printCircle=100
 
 data_format='channels_first'
 n_channels=3
-img_height=128
-img_width=160
+img_height=480
+img_width=480
 
 # stack_sizes="($n_channels, 48, 96, 192)"
 # R_stack_sizes=$stack_sizes
@@ -46,8 +46,6 @@ shuffle=true
 
 CUDA_VISIBLE_DEVICES=0 python train.py \
 	--mode ${mode} \
-	--dataPath ${DATA_DIR} \
-	--checkpoint_savePath ${checkpoint_savePath} \
 	--epochs ${epochs} \
 	--batch_size ${batch_size} \
 	--optimizer ${optimizer} \
@@ -56,7 +54,6 @@ CUDA_VISIBLE_DEVICES=0 python train.py \
 	--beta1 ${beta1} \
 	--beta2 ${beta2} \
 	--workers ${workers} \
-	--checkpoint_file ${checkpoint_file} \
 	--printCircle ${printCircle} \
 	--data_format ${data_format} \
 	--n_channels ${n_channels} \
