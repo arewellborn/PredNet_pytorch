@@ -309,7 +309,6 @@ def model_fn(
         R_filter_sizes,
         output_mode="prediction",
         data_format=data_format,
-        return_sequences=True,
     )
     with open(os.path.join(model_dir, "model.pth"), "rb") as f:
         model.load_state_dict(torch.load(f))
