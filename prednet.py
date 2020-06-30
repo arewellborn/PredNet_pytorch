@@ -139,7 +139,6 @@ class PredNet(nn.Module):
         output_mode="error",
         extrap_start_time=None,
         data_format="channels_last",
-        return_sequences=False,
     ):
         super(PredNet, self).__init__()
         self.stack_sizes = stack_sizes
@@ -187,8 +186,6 @@ class PredNet(nn.Module):
             self.channel_axis = -1
             self.row_axis = -3
             self.col_axis = -2
-
-        self.return_sequences = return_sequences
 
         self.make_layers()
 
@@ -589,5 +586,4 @@ if __name__ == "__main__":
         Ahat_filter_sizes,
         R_filter_sizes,
         output_mode="error",
-        return_sequences=True,
     )
