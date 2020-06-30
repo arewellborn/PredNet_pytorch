@@ -1,6 +1,8 @@
 # -*- coding: utf-8 -*-
 
-from .train import argparse
+from prednet import PredNet
+import os
+import torch
 
 
 def model_fn(
