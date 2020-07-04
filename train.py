@@ -91,16 +91,6 @@ def arg_parse():
         metavar="N",
         help="The width of input frame (default: 160)",
     )
-    # parser.add_argument('--stack_sizes', default = '', type = str,
-    #                     help = 'Number of channels in targets (A) and predictions (Ahat) in each layer of the architecture.')
-    # parser.add_argument('--R_stack_sizes', default = '', type = str,
-    #                     help = 'Number of channels in the representation (R) modules.')
-    # parser.add_argument('--A_filter_sizes', default = '', type = str,
-    #                     help = 'Filter sizes for the target (A) modules. (except the target (A) in lowest layer (i.e., input image))')
-    # parser.add_argument('--Ahat_filter_sizes', default = '', type = str,
-    #                     help = 'Filter sizes for the prediction (Ahat) modules.')
-    # parser.add_argument('--R_filter_sizes', default = '', type = str,
-    #                     help = 'Filter sizes for the representation (R) modules.')
     parser.add_argument(
         "--layer_loss_weightsMode",
         default="L_0",
@@ -116,10 +106,10 @@ def arg_parse():
     )
     parser.add_argument("--shuffle", default=True, type=bool, help="shuffle or not")
     parser.add_argument(
-        "--local-data-dir",
+        "--training-data-dir",
         default="h5/",
         type=str,
-        help="Local data directory for the training and validation datasets.",
+        help="Training data directory for the training and validation datasets.",
     )
     parser.add_argument(
         "--load-model",
@@ -161,10 +151,10 @@ def train(model, args):
     # print('layer_loss_weightsMode: ', args.layer_loss_weightsMode)
     prednet = model
     # frame data files
-    local_data_dir = args.local_data_dir
+    training_data_dir = args.training_data_dir
     output_data_dir = args.output_data_dir
-    train_file = os.path.join(local_data_dir, "X_train.h5")
-    train_sources = os.path.join(local_data_dir, "sources_train.h5")
+    train_file = os.path.join(training_data_dir, "X_train.h5")
+    train_sources = os.path.join(training_data_dir, "sources_train.h5")
 
     output_mode = "error"
     sequence_start_mode = "all"
@@ -310,12 +300,6 @@ if __name__ == "__main__":
     data_dir = args.data_dir
     load_model = args.load_model
     data_format = args.data_format
-
-    # stack_sizes       = eval(args.stack_sizes)
-    # R_stack_sizes     = eval(args.R_stack_sizes)
-    # A_filter_sizes    = eval(args.A_filter_sizes)
-    # Ahat_filter_sizes = eval(args.Ahat_filter_sizes)
-    # R_filter_sizes    = eval(args.R_filter_sizes)
 
     stack_sizes = (n_channels, 48, 96, 192)
     R_stack_sizes = stack_sizes
