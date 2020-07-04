@@ -5,6 +5,7 @@ import os
 import numpy as np
 import argparse
 import time
+from datetime import datetime
 
 import torch
 import torch.nn as nn
@@ -115,6 +116,18 @@ def arg_parse():
         help="number of timesteps used for sequences in training (default: 10)",
     )
     parser.add_argument("--shuffle", default=True, type=bool, help="shuffle or not")
+    parser.add_argument(
+        "--local-data-dir",
+        default="h5/",
+        type=str,
+        help="Local data directory for the training and validation datasets.",
+    )
+    parser.add_argument(
+        "--load-model",
+        default="",
+        type=str,
+        help="Path to pre-existing model that can be loaded before training.",
+    )
 
     # Container environment
     parser.add_argument(
@@ -149,11 +162,12 @@ def train(model, args):
     # print('layer_loss_weightsMode: ', args.layer_loss_weightsMode)
     prednet = model
     # frame data files
-    DATA_DIR = args.data_dir
-    train_file = os.path.join(DATA_DIR, "X_train.h5")
-    train_sources = os.path.join(DATA_DIR, "sources_train.h5")
-    val_file = os.path.join(DATA_DIR, "X_val.h5")
-    val_sources = os.path.join(DATA_DIR, "sources_val.h5")
+    local_data_dir = args.local_data_dir
+    output_data_dir = args.output_data_dir
+    train_file = os.path.join(local_data_dir, "X_train.h5")
+    train_sources = os.path.join(local_data_dir, "sources_train.h5")
+    val_file = os.path.join(local_data_dir, "X_val.h5")
+    val_sources = os.path.join(local_data_dir, "sources_val.h5")
 
     output_mode = "error"
     sequence_start_mode = "all"
@@ -297,6 +311,9 @@ if __name__ == "__main__":
     n_channels = args.n_channels
     img_height = args.img_height
     img_width = args.img_width
+    data_dir = args.data_dir
+    load_model = args.load_model
+    data_format = args.data_format
 
     # stack_sizes       = eval(args.stack_sizes)
     # R_stack_sizes     = eval(args.R_stack_sizes)
@@ -310,18 +327,25 @@ if __name__ == "__main__":
     Ahat_filter_sizes = (3, 3, 3, 3)
     R_filter_sizes = (3, 3, 3, 3)
 
-    prednet = PredNet(
-        stack_sizes,
-        R_stack_sizes,
-        A_filter_sizes,
-        Ahat_filter_sizes,
-        R_filter_sizes,
-        output_mode="error",
-        data_format=args.data_format,
-        return_sequences=True,
-    )
+    # Load previous model if path is given
+    if load_model:
+        prednet = torch.load_model(load_model)
+        prednet.output_mode = "error",
+        prednet.data_format = data_format,
+    else:
+        prednet = PredNet(
+            stack_sizes,
+            R_stack_sizes,
+            A_filter_sizes,
+            Ahat_filter_sizes,
+            R_filter_sizes,
+            output_mode="error",
+            data_format=data_format,
+        )
     print(prednet)
     prednet.cuda()
 
     assert args.mode == "train"
     train(prednet, args)
+    save_path = os.path.join(data_dir, str(datetime.now()), 'model.pth')
+    torch.save(prednet.cpu().state_dict(), save_path)
