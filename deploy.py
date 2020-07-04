@@ -15,7 +15,7 @@ def model_fn(
     data_format,
 ):
     """load model function for SageMaker. Must pass in model 
-    parameters as kwargs when calling deploy."""
+    parameters as kwargs when calling estimator.deploy(**kwargs)."""
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     model = PredNet(
         stack_sizes,
