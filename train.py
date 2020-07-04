@@ -127,7 +127,7 @@ def arg_parse():
     )
     parser.add_argument("--model-dir", type=str, default=os.environ["SM_MODEL_DIR"])
     parser.add_argument(
-        "--data-dir", type=str, default=os.environ["SM_CHANNEL_TRAINING"]
+        "--data-dir", type=str, default=os.environ["SM_DATA_DIR"]
     )
     parser.add_argument("--num-gpus", type=int, default=os.environ["SM_NUM_GPUS"])
     parser.add_argument(
@@ -151,7 +151,7 @@ def train(model, args):
     # print('layer_loss_weightsMode: ', args.layer_loss_weightsMode)
     prednet = model
     # frame data files
-    training_data_dir = args.training_data_dir
+    training_data_dir = args.data_dir
     output_data_dir = args.output_data_dir
     train_file = os.path.join(training_data_dir, "X_train.h5")
     train_sources = os.path.join(training_data_dir, "sources_train.h5")
@@ -286,8 +286,8 @@ def saveCheckpoint(zcr_state_dict, output_data_dir):
     """save the checkpoint for both restarting and evaluating."""
     epoch = zcr_state_dict["epoch"]
     fileName = f"checkpoint-{epoch}"
-    os.path.join(output_data_dir,)
-    torch.save(zcr_state_dict, fileName)
+    path = os.path.join(output_data_dir, fileName)
+    torch.save(zcr_state_dict, path)
 
 
 if __name__ == "__main__":
@@ -327,5 +327,5 @@ if __name__ == "__main__":
 
     assert args.mode == "train"
     train(prednet, args)
-    save_path = os.path.join(data_dir, str(datetime.now()), "model.pth")
+    save_path = os.path.join(args.model_dir, str(datetime.now()) + '_' + "model.pth")
     torch.save(prednet.cpu().state_dict(), save_path)
