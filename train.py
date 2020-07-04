@@ -2,14 +2,13 @@
 
 
 import os
-import numpy as np
 import argparse
 import time
 from datetime import datetime
+import numpy as np
+import json
 
 import torch
-import torch.nn as nn
-import torch.nn.functional as F
 from torch.autograd import Variable
 from torch.optim import lr_scheduler
 
@@ -166,8 +165,6 @@ def train(model, args):
     output_data_dir = args.output_data_dir
     train_file = os.path.join(local_data_dir, "X_train.h5")
     train_sources = os.path.join(local_data_dir, "sources_train.h5")
-    val_file = os.path.join(local_data_dir, "X_val.h5")
-    val_sources = os.path.join(local_data_dir, "sources_val.h5")
 
     output_mode = "error"
     sequence_start_mode = "all"
@@ -211,7 +208,6 @@ def train(model, args):
         for step, (frameGroup, target) in enumerate(dataLoader):
             # print(frameGroup)   # [torch.FloatTensor of size 16x12x80x80]
             batch_frames = Variable(frameGroup.cuda())
-            batch_y = Variable(target.cuda())
             output = prednet(batch_frames, states)
 
             # '''进行按照timestep和layer对error进行加权.'''
@@ -330,8 +326,8 @@ if __name__ == "__main__":
     # Load previous model if path is given
     if load_model:
         prednet = torch.load_model(load_model)
-        prednet.output_mode = "error",
-        prednet.data_format = data_format,
+        prednet.output_mode = "error"
+        prednet.data_format = data_format
     else:
         prednet = PredNet(
             stack_sizes,
@@ -347,5 +343,5 @@ if __name__ == "__main__":
 
     assert args.mode == "train"
     train(prednet, args)
-    save_path = os.path.join(data_dir, str(datetime.now()), 'model.pth')
+    save_path = os.path.join(data_dir, str(datetime.now()), "model.pth")
     torch.save(prednet.cpu().state_dict(), save_path)
