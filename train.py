@@ -126,10 +126,10 @@ def arg_parse():
         "--current-host", type=str, default=os.environ["SM_CURRENT_HOST"]
     )
     parser.add_argument("--model-dir", type=str, default=os.environ["SM_MODEL_DIR"])
-    parser.add_argument(
-        "--data-dir", type=str, default=os.environ["SM_DATA_DIR"]
-    )
     parser.add_argument("--num-gpus", type=int, default=os.environ["SM_NUM_GPUS"])
+    parser.add_argument(
+        "--data-dir", type=str, default='/opt/ml/input/data/h5'
+    )
     parser.add_argument(
         "--output-data-dir", type=str, default=os.environ["SM_OUTPUT_DATA_DIR"]
     )
@@ -153,7 +153,7 @@ def train(model, args):
     # frame data files
     training_data_dir = args.data_dir
     output_data_dir = args.output_data_dir
-    train_file = os.path.join(training_data_dir, "X_train.h5")
+    train_file = os.path.join(training_data_dir, "train.h5")
     train_sources = os.path.join(training_data_dir, "sources_train.h5")
 
     output_mode = "error"
@@ -189,7 +189,6 @@ def train(model, args):
         sum_trainLoss_in_epoch = 0.0
         min_trainLoss_in_epoch = float("inf")
         startTime_epoch = time.time()
-        lr_maker.step()
 
         initial_states = prednet.get_initial_states(
             input_shape
@@ -248,6 +247,8 @@ def train(model, args):
             optimizer.zero_grad()
             loss.backward()
             optimizer.step()
+            lr_maker.step()
+
 
             tr_loss += loss.data[0]
             sum_trainLoss_in_epoch += loss.data[0]
