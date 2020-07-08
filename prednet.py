@@ -405,7 +405,7 @@ class PredNet(nn.Module):
             # see https://github.com/huggingface/torchMoji/blob/master/torchmoji/lstm.py
             in_gate = hard_sigmoid(self.conv_layers["i"][lay](inputs))
             forget_gate = hard_sigmoid(self.conv_layers["f"][lay](inputs))
-            cell_gate = F.tanh(self.conv_layers["c"][lay](inputs))
+            cell_gate = torch.tanh(self.conv_layers["c"][lay](inputs))
             out_gate = hard_sigmoid(self.conv_layers["o"][lay](inputs))
 
             # print(forget_gate.size())       # torch.Size([8, 192, 16, 20])
@@ -420,7 +420,7 @@ class PredNet(nn.Module):
             if not isinstance(c_current[lay], Variable):
                 c_current[lay] = Variable(c_current[lay], requires_grad=True)
             c_next = (forget_gate * c_current[lay]) + (in_gate * cell_gate)  # 对应元素相乘
-            R_next = out_gate * F.tanh(
+            R_next = out_gate * torch.tanh(
                 c_next
             )  # `R_next` here相当于标准LSTM中的hidden state. 这个就是视频的表征.
 
@@ -461,8 +461,8 @@ class PredNet(nn.Module):
                 E_up = F.relu(Ahat - A)
                 E_down = F.relu(A - Ahat)
             elif self.error_activation.lower() == "tanh":
-                E_up = F.tanh(Ahat - A)
-                E_down = F.tanh(A - Ahat)
+                E_up = torch.tanh(Ahat - A)
+                E_down = torch.tanh(A - Ahat)
             else:
                 raise (
                     RuntimeError(

@@ -241,7 +241,7 @@ def train(model, args):
             ]  # 是一个Variable的列表
             total_error = error_list[0] * time_loss_weights[0]
             for err, time_weight in zip(error_list[1:], time_loss_weights[1:]):
-                total_error = total_error + err * time_weight
+                total_error = float(total_error) + float(err) * float(time_weight)
 
             loss = total_error
             optimizer.zero_grad()
@@ -328,5 +328,5 @@ if __name__ == "__main__":
 
     assert args.mode == "train"
     train(prednet, args)
-    save_path = os.path.join(args.model_dir, str(datetime.now()) + '_' + "model.pth")
+    save_path = os.path.join(args.model_dir, datetime.now().strftime("%Y%m%d%H%M%S") + '_' + "model.pth")
     torch.save(prednet.cpu().state_dict(), save_path)
