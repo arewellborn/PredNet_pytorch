@@ -127,9 +127,7 @@ def arg_parse():
     )
     parser.add_argument("--model-dir", type=str, default=os.environ["SM_MODEL_DIR"])
     parser.add_argument("--num-gpus", type=int, default=os.environ["SM_NUM_GPUS"])
-    parser.add_argument(
-        "--data-dir", type=str, default='/opt/ml/input/data/h5'
-    )
+    parser.add_argument("--data-dir", type=str, default="/opt/ml/input/data/h5")
     parser.add_argument(
         "--output-data-dir", type=str, default=os.environ["SM_OUTPUT_DATA_DIR"]
     )
@@ -249,7 +247,6 @@ def train(model, args):
             optimizer.step()
             lr_maker.step()
 
-
             tr_loss += loss.data[0]
             sum_trainLoss_in_epoch += loss.data[0]
             if step % printCircle == (printCircle - 1):
@@ -328,5 +325,7 @@ if __name__ == "__main__":
 
     assert args.mode == "train"
     train(prednet, args)
-    save_path = os.path.join(args.model_dir, datetime.now().strftime("%Y%m%d%H%M%S") + '_' + "model.pth")
+    save_path = os.path.join(
+        args.model_dir, datetime.now().strftime("%Y%m%d%H%M%S") + "_" + "model.pth"
+    )
     torch.save(prednet.cpu().state_dict(), save_path)
