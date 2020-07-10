@@ -117,6 +117,12 @@ def arg_parse():
         type=str,
         help="Path to pre-existing model that can be loaded before training.",
     )
+    parser.add_argument(
+        "--seed",
+        default=1234,
+        type=int,
+        help="Random seed for training.",
+    )
 
     # Container environment
     parser.add_argument(
