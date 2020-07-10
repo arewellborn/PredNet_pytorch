@@ -138,7 +138,7 @@ class PredNet(nn.Module):
         LSTM_inner_activation="hard_sigmoid",
         output_mode="error",
         extrap_start_time=None,
-        data_format="channels_last",
+        data_format="channels_first",
     ):
         super(PredNet, self).__init__()
         self.stack_sizes = stack_sizes
@@ -176,7 +176,9 @@ class PredNet(nn.Module):
             self.output_layer_NO = None
 
         self.extrap_start_time = extrap_start_time
-        assert data_format in ["channels_first", "channels_last"]
+        assert (
+            data_format == "channels_first"
+        ), "Images must be channels_first to work with pytorch convolutions."
         self.data_format = data_format
         if self.data_format == "channels_first":
             self.channel_axis = -3
@@ -396,7 +398,7 @@ class PredNet(nn.Module):
             ):  # 第一个时间步内inputs还是Tensor类型, 但是过一遍网络之后, 以后的时间步中就都是Variable类型了.
                 inputs = Variable(inputs, requires_grad=True)
 
-            # print(lay, type(inputs), inputs.size())   # 正确的情况下, 举例如下:
+            print(lay, type(inputs), inputs.size())  # 正确的情况下, 举例如下:
             # lay3: torch.Size([8, 576, 16, 20])  [576 = 384(E_l^t) + 192(R_l^(t-1))]
             # lay2: torch.Size([8, 480, 32, 40])  [480 = 192(E_l^t) +  96(R_l^(t-1)) + 192(R_(l+1)^t)]
             # lay1: torch.Size([8, 240, 64, 80])  [240 =  96(E_l^t) +  48(R_l^(t-1)) +  96(R_(l+1)^t)]
