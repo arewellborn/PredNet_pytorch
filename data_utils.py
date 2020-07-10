@@ -178,7 +178,7 @@ class ZcrDataLoader(object):
             self.source_file,
             self.args.num_timeSteps,
             self.args.shuffle,
-            None,
+            self.seed,
             self.output_mode,
             self.sequence_start_mode,
             self.N_seq,
