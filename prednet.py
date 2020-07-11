@@ -453,9 +453,9 @@ class PredNet(nn.Module):
                 # if self.output_mode == 'prediction':
                 #     break
 
-            # print('&' * 10, lay)
-            # print('Ahat', Ahat.size())  # torch.Size([batch_size, 3, 128, 160])
-            # print('A', A.size())        # 原来A0直接用的是从dataloader中加载出来的数据, 所以打印的是torch.Size([batch_size, 10, 3, 128, 160]), 这就是问题所在: dataloader返回的数据是(batch_size, timesteps, (image_shape)), 而实际上在RNN中用的是将每个时间步分开的. 现在将核心逻辑解耦出来形成`step`函数, A0就变成torch.Size([batch_size, 3, 128, 160])这个维度了.
+            print('&' * 10, lay)
+            print('Ahat', Ahat.size())  # torch.Size([batch_size, 3, 128, 160])
+            print('A', A.size())        # 原来A0直接用的是从dataloader中加载出来的数据, 所以打印的是torch.Size([batch_size, 10, 3, 128, 160]), 这就是问题所在: dataloader返回的数据是(batch_size, timesteps, (image_shape)), 而实际上在RNN中用的是将每个时间步分开的. 现在将核心逻辑解耦出来形成`step`函数, A0就变成torch.Size([batch_size, 3, 128, 160])这个维度了.
             # print('&' * 20)
 
             # compute errors
@@ -532,9 +532,12 @@ class PredNet(nn.Module):
         """
 
         # 默认是batch_fist == True的, 即第一维是batch_size, 第二维是timesteps.
+        print("A0_withTimeStep pre transpose:", A0_withTimeStep.size())
         A0_withTimeStep = A0_withTimeStep.transpose(
             0, 1
         )  # (b, t, c, h, w) -> (t, b, c, h, w)
+        print("A0_withTimeStep post transpose:", A0_withTimeStep.size())
+
 
         num_timesteps = A0_withTimeStep.size()[0]
 
