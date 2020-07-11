@@ -83,8 +83,6 @@ class SequenceGenerator(data.Dataset):
         self.sequence_start_mode = sequence_start_mode
         self.N_seq = N_seq
         self.data_format = data_format
-        if self.data_format == "channels_first":
-            self.X = np.transpose(self.X, (0, 3, 1, 2))
         self.img_shape = self.X[0].shape
         self.num_samples = self.X.shape[0]
 
@@ -178,7 +176,7 @@ class ZcrDataLoader(object):
             self.source_file,
             self.args.num_timeSteps,
             self.args.shuffle,
-            self.seed,
+            self.args.seed,
             self.output_mode,
             self.sequence_start_mode,
             self.N_seq,
