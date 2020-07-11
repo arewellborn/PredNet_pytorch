@@ -113,9 +113,6 @@ def evaluate(model, args):
     #     f.write("Previous Frame MSE: %f" % MSE_previous)
 
     # Plot some predictions
-    if prednet.data_format == 'channels_first':
-        X_groundTruth_list = [np.transpose(batch_img, (0, 2, 3, 1)) for batch_img in X_groundTruth_list]
-        X_predict_list     = [np.transpose(batch_img, (0, 2, 3, 1)) for batch_img in X_predict_list]
     assert len(X_groundTruth_list) == len(X_predict_list) == args.num_timeSteps
     timesteps = args.num_timeSteps
     total_num = X_groundTruth_list[0].shape[0]
