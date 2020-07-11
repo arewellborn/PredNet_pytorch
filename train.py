@@ -59,7 +59,7 @@ def arg_parse():
     )
     parser.add_argument(
         "--printCircle",
-        default=100,
+        default=10,
         type=int,
         metavar="N",
         help="how many steps to print the loss information",
@@ -185,8 +185,8 @@ def train(model, args):
         )
 
     optimizer = torch.optim.Adam(prednet.parameters(), lr=args.lr)
-    lr_lambda_func = lambda epoch: 1 if epoch < 75 else 0.1
-    lr_maker = lr_scheduler.LambdaLR(optimizer=optimizer, lr_lambda=lr_lambda_func)
+    # This is not the same LR scheduler as the original paper but supports loss observations
+    lr_maker  = lr_scheduler.StepLR(optimizer = optimizer, step_size = 75, gamma = 0.1)
     printCircle = args.printCircle
     for e in range(args.epochs):
         tr_loss = 0.0
@@ -199,7 +199,7 @@ def train(model, args):
         )  # 原网络貌似不是stateful的, 故这里再每个epoch开始时重新初始化(如果是stateful的, 则只在全部的epoch开始时初始化一次)
         states = initial_states
         for step, (frameGroup, target) in enumerate(dataLoader):
-            print(frameGroup.size())   # [torch.FloatTensor of size 16x12x80x80]
+#             print(frameGroup.size())   # [torch.FloatTensor of size 16x12x80x80]
             batch_frames = Variable(frameGroup.cuda())
             output = prednet(batch_frames, states)
 
@@ -245,7 +245,7 @@ def train(model, args):
             ]  # 是一个Variable的列表
             total_error = error_list[0] * time_loss_weights[0]
             for err, time_weight in zip(error_list[1:], time_loss_weights[1:]):
-                total_error = float(total_error) + float(err) * float(time_weight)
+                total_error = total_error + err * time_weight
 
             loss = total_error
             optimizer.zero_grad()
