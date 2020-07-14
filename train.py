@@ -20,6 +20,7 @@ from data_utils import ZcrDataLoader
 from deploy import model_fn
 from deploy import input_fn
 from deploy import predict_fn
+
 model_fn = model_fn
 input_fn = input_fn
 predict_fn = predict_fn
@@ -127,10 +128,7 @@ def arg_parse():
         help="Path to pre-existing model that can be loaded before training.",
     )
     parser.add_argument(
-        "--seed",
-        default=1234,
-        type=int,
-        help="Random seed for training.",
+        "--seed", default=1234, type=int, help="Random seed for training.",
     )
 
     # Container environment
@@ -208,7 +206,7 @@ def train(model, args):
         )  # 原网络貌似不是stateful的, 故这里再每个epoch开始时重新初始化(如果是stateful的, 则只在全部的epoch开始时初始化一次)
         states = initial_states
         for step, (frameGroup, target) in enumerate(dataLoader):
-            print(frameGroup.size())   # [torch.FloatTensor of size 16x12x80x80]
+            print(frameGroup.size())  # [torch.FloatTensor of size 16x12x80x80]
             batch_frames = Variable(frameGroup.cuda())
             output = prednet(batch_frames, states)
 
