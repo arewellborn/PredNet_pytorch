@@ -22,8 +22,6 @@ def arg_parse():
 
     parser.add_argument('--mode', default = 'train', type = str,
                         help = 'train or evaluate (default: train)')
-    parser.add_argument('--dataPath', default = '', type = str, metavar = 'PATH',
-                        help = 'path to video dataset (default: none)')
     parser.add_argument('--resultsPath', default = '', type = str, metavar = 'PATH',
                         help = 'saving path to results of PredNet (default: none)')
     parser.add_argument('--checkpoint_file', default = '', type = str,
@@ -46,16 +44,20 @@ def arg_parse():
                         help = 'The height of input frame (default: 128)')
     parser.add_argument('--img_width', default = 160, type = int, metavar = 'N',
                         help = 'The width of input frame (default: 160)')
-    # parser.add_argument('--stack_sizes', default = '', type = str,
-    #                     help = 'Number of channels in targets (A) and predictions (Ahat) in each layer of the architecture.')
-    # parser.add_argument('--R_stack_sizes', default = '', type = str,
-    #                     help = 'Number of channels in the representation (R) modules.')
-    # parser.add_argument('--A_filter_sizes', default = '', type = str,
-    #                     help = 'Filter sizes for the target (A) modules. (except the target (A) in lowest layer (i.e., input image))')
-    # parser.add_argument('--Ahat_filter_sizes', default = '', type = str,
-    #                     help = 'Filter sizes for the prediction (Ahat) modules.')
-    # parser.add_argument('--R_filter_sizes', default = '', type = str,
-    #                     help = 'Filter sizes for the representation (R) modules.')
+
+    # Container environment
+    parser.add_argument(
+        "--hosts", type=list, default=json.loads(os.environ["SM_HOSTS"])
+    )
+    parser.add_argument(
+        "--current-host", type=str, default=os.environ["SM_CURRENT_HOST"]
+    )
+    parser.add_argument("--model-dir", type=str, default=os.environ["SM_MODEL_DIR"])
+    parser.add_argument("--num-gpus", type=int, default=os.environ["SM_NUM_GPUS"])
+    parser.add_argument("--data-dir", type=str, default="/opt/ml/input/data/h5")
+    parser.add_argument(
+        "--output-data-dir", type=str, default=os.environ["SM_OUTPUT_DATA_DIR"]
+    )
     
     args = parser.parse_args()
     return args
@@ -71,10 +73,10 @@ def evaluate(model, args):
     '''Evaluate PredNet on KITTI sequences'''
     prednet = model     # Now prednet is the testing model (to output predictions)
 
-    DATA_DIR = args.dataPath
+    DATA_DIR = args.data_dir
     RESULTS_SAVE_DIR = args.resultsPath
-    test_file = os.path.join(DATA_DIR, 'X_test.h5')
-    test_sources = os.path.join(DATA_DIR, 'sources_test.h5')
+    test_file = os.path.join(DATA_DIR, 'validate.h5')
+    test_sources = os.path.join(DATA_DIR, 'sources_validation.h5')
 
     output_mode = 'prediction'
     sequence_start_mode = 'unique'
