@@ -1,8 +1,12 @@
 # -*- coding: utf-8 -*-
 
-from prednet import PredNet
 import os
+import argparse
+from io import StringIO
+import json
 import torch
+from prednet import PredNet
+from evaluate import evaluate
 
 
 def model_fn(
@@ -16,7 +20,6 @@ def model_fn(
 ):
     """load model function for SageMaker. Must pass in model 
     parameters as kwargs when calling estimator.deploy(**kwargs)."""
-    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     model = PredNet(
         stack_sizes,
         R_stack_sizes,
@@ -28,15 +31,25 @@ def model_fn(
     )
     with open(os.path.join(model_dir, "model.pth"), "rb") as f:
         model.load_state_dict(torch.load(f))
-    return model.to(device)
+    return model
 
 
-# def input_fn(request_body, request_content_type):
-#     pass
+def input_fn(request_body, request_content_type):
+    """Pass in args for evaluate function. Takes arguments passed as json.dump(dict)."""
+    if request_content_type == "application/json":
+        argparse_dict = json.loads(StringIO(request_body))
+        parser = argparse.ArgumentParser()
+        t_args = argparse.Namespace()
+        t_args.__dict__.update(argparse_dict)
+        args = parser.parse_args(namespace=t_args)
+        return args
+    else:
+        raise ValueError("Request must be json dump.")
 
 
-# def predict_fn(input_object, model):
-#     pass
+def predict_fn(input_data, model):
+    args = input_data
+    evaluate(model, args)
 
 
 # def output_fn(prediction, response_content_type):
