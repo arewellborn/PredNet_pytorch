@@ -16,6 +16,15 @@ from torch.optim import lr_scheduler
 from prednet import PredNet
 from data_utils import ZcrDataLoader
 
+# Sagemaker deployment functions
+from deploy import model_fn
+from deploy import input_fn
+from deploy import predict_fn
+model_fn = model_fn
+input_fn = input_fn
+predict_fn = predict_fn
+
+
 # os.environ['CUDA_LAUNCH_BLOCKING'] = 1
 # torch.backends.cudnn.benchmark = True
 
