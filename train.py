@@ -16,6 +16,9 @@ from torch.optim import lr_scheduler
 from prednet import PredNet
 from data_utils import ZcrDataLoader
 
+# Import evaluate
+from evaluate import evaluate
+
 # Sagemaker deployment functions
 from deploy import model_fn
 from deploy import input_fn
@@ -36,6 +39,9 @@ def arg_parse():
 
     parser.add_argument(
         "--mode", default="train", type=str, help="train or evaluate (default: train)"
+    )
+    parser.add_argument(
+        "--evaluate", default=True, type=bool, help="evaluate after training. (default: true)"
     )
     parser.add_argument(
         "--epochs",
@@ -340,3 +346,5 @@ if __name__ == "__main__":
     train(prednet, args)
     save_path = os.path.join(args.model_dir, "model.pth")
     torch.save(prednet.cpu().state_dict(), save_path)
+    if args.evaluate:
+        evaluate(prednet, args)
