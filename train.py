@@ -193,7 +193,7 @@ def train(model, args):
 
     optimizer = torch.optim.Adam(prednet.parameters(), lr=args.lr)
     # This is not the same LR scheduler as the original paper but supports loss observations
-    lr_maker  = lr_scheduler.StepLR(optimizer = optimizer, step_size = 75, gamma = 0.1)
+    lr_maker = lr_scheduler.StepLR(optimizer=optimizer, step_size=75, gamma=0.1)
     printCircle = args.printCircle
     for e in range(args.epochs):
         tr_loss = 0.0
@@ -206,7 +206,7 @@ def train(model, args):
         )  # 原网络貌似不是stateful的, 故这里再每个epoch开始时重新初始化(如果是stateful的, 则只在全部的epoch开始时初始化一次)
         states = initial_states
         for step, (frameGroup, target) in enumerate(dataLoader):
-#             print(frameGroup.size())   # [torch.FloatTensor of size 16x12x80x80]
+            #             print(frameGroup.size())   # [torch.FloatTensor of size 16x12x80x80]
             batch_frames = Variable(frameGroup.cuda())
             output = prednet(batch_frames, states)
 
@@ -338,7 +338,5 @@ if __name__ == "__main__":
 
     assert args.mode == "train"
     train(prednet, args)
-    save_path = os.path.join(
-        args.model_dir, datetime.now().strftime("%Y%m%d%H%M%S") + "_" + "model.pth"
-    )
+    save_path = os.path.join(args.model_dir, "model.pth")
     torch.save(prednet.cpu().state_dict(), save_path)
