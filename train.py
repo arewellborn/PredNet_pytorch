@@ -39,7 +39,7 @@ def arg_parse():
     )
     parser.add_argument(
         "--epochs",
-        default=20,
+        default=2,
         type=int,
         metavar="N",
         help="number of total epochs to run",
