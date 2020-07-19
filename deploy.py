@@ -9,17 +9,15 @@ from prednet import PredNet
 from evaluate import evaluate
 
 
-def model_fn(
-    model_dir,
-    stack_sizes,
-    R_stack_sizes,
-    A_filter_sizes,
-    Ahat_filter_sizes,
-    R_filter_sizes,
-    data_format,
-):
+def model_fn(model_dir):
     """load model function for SageMaker. Must pass in model 
     parameters as kwargs when calling estimator.deploy(**kwargs)."""
+    n_channels = 3
+    stack_sizes = (n_channels, 48, 96, 192)
+    R_stack_sizes = stack_sizes
+    A_filter_sizes = (3, 3, 3)
+    Ahat_filter_sizes = (3, 3, 3, 3)
+    R_filter_sizes = (3, 3, 3, 3)
     model = PredNet(
         stack_sizes,
         R_stack_sizes,
@@ -27,7 +25,7 @@ def model_fn(
         Ahat_filter_sizes,
         R_filter_sizes,
         output_mode="prediction",
-        data_format=data_format,
+        data_format='channels_first',
     )
     with open(os.path.join(model_dir, "model.pth"), "rb") as f:
         model.load_state_dict(torch.load(f))
