@@ -3,6 +3,7 @@
 import os
 import argparse
 import numpy as np
+import tarfile
 
 import matplotlib
 matplotlib.use('Agg')
@@ -16,16 +17,19 @@ from torch.autograd import Variable
 from prednet import PredNet
 from data_utils import ZcrDataLoader
 
+# Sagemaker imports
+import boto3
+
 def arg_parse():
     desc = "Video Frames Predicting Task via PredNet."
     parser = argparse.ArgumentParser(description = desc)
 
     parser.add_argument('--mode', default = 'train', type = str,
                         help = 'train or evaluate (default: train)')
-    parser.add_argument('--resultsPath', default = '', type = str, metavar = 'PATH',
-                        help = 'saving path to results of PredNet (default: none)')
+    parser.add_argument('--non-local', default = True, type = bool,
+                        help = 'Indicates that the model files should be downloaded from a remote repo.')
     parser.add_argument('--checkpoint_file', default = '', type = str,
-                        help = 'checkpoint file for evaluating. (default: none)')
+                        help = 'checkpoint file for evaluating. If using remote S3 repository, this must be the key. (default: none)')
     parser.add_argument('--batch_size', default = 32, type = int, metavar = 'N',
                         help = 'The size of batch')
     parser.add_argument('--num_plot', default = 40, type = int, metavar = 'N',
@@ -44,6 +48,8 @@ def arg_parse():
                         help = 'The height of input frame (default: 128)')
     parser.add_argument('--img_width', default = 160, type = int, metavar = 'N',
                         help = 'The width of input frame (default: 160)')
+    parser.add_argument('--bucket', default = '', type = str,
+                        help = 'S3 bucket that contains the model artifacts.')
 
     # Container environment
     parser.add_argument(
@@ -74,7 +80,7 @@ def evaluate(model, args):
     prednet = model     # Now prednet is the testing model (to output predictions)
 
     DATA_DIR = args.data_dir
-    RESULTS_SAVE_DIR = args.resultsPath
+    RESULTS_SAVE_DIR = args.output_data_dir
     test_file = os.path.join(DATA_DIR, 'validate.h5')
     test_sources = os.path.join(DATA_DIR, 'sources_validation.h5')
 
@@ -153,11 +159,30 @@ def evaluate(model, args):
     print('The plots are saved in "%s"! Have a nice day!' % plot_save_dir)
 
 
-def checkpoint_loader(checkpoint_file):
+def checkpoint_loader(args):
     '''load the checkpoint for weights of PredNet.'''
-    print('Loading...', end = '')
-    checkpoint = torch.load(checkpoint_file)
-    print('Done.')
+    if args.non_local:
+        assert args.bucket, "S3 bucket needs to be defined for non-local model artifacts."
+        print('Downloading model artifacts from non-local repo...', end = '')
+        file_name = args.checkpoint_file.rsplit('/', 1)[-1]
+        assert 'tar.gz' in file_name, "checkpoint_loader requires a tar.gz file for non-local model artifacts." 
+        checkpoint_path = os.path.abspath(os.path.join(args.data_dir, "..", file_name))
+        s3_connection = boto3.client("s3")
+        s3_connection.download_file(Bucket=args.bucket, Key=args.checkpoint_file, Filename=checkpoint_path)
+        print('Download complete. Loading model artifacts...')
+        with tarfile.open(checkpoint_path, 'r:gz') as tarf:
+            members = tarf.getmembers()
+            for members in members:
+                if 'model' in member.name:
+                    model_file_member = member
+            model_file = os.path.abspath(os.path.join(args.data_dir, "..", 'model.pth'))
+            tarf.extract(model_file_member, model_file)
+            checkpoint = torch.load(model_file)
+            print('Done.')
+    else:
+        print('Loading from local directory...', end = '')
+        checkpoint = torch.load(checkpoint_file)
+        print('Done.')
     return checkpoint
 
 def load_pretrained_weights(model, state_dict_file):
