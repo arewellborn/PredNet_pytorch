@@ -347,4 +347,5 @@ if __name__ == "__main__":
     save_path = os.path.join(args.model_dir, "model.pth")
     torch.save(prednet.cpu().state_dict(), save_path)
     if args.evaluate:
+        prednet.output_mode = 'prediction'
         evaluate(prednet, args)

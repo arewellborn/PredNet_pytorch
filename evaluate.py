@@ -4,6 +4,7 @@ import os
 import argparse
 import numpy as np
 import tarfile
+import json
 
 import matplotlib
 
@@ -34,6 +35,9 @@ def arg_parse():
         default=True,
         type=bool,
         help="Indicates that the model files should be downloaded from a remote repo.",
+    )
+    parser.add_argument(
+        "--seed", default=1234, type=int, help="Random seed for training.",
     )
     parser.add_argument(
         "--checkpoint_file",
@@ -127,7 +131,7 @@ def evaluate(model, args):
 
     DATA_DIR = args.data_dir
     RESULTS_SAVE_DIR = args.output_data_dir
-    test_file = os.path.join(DATA_DIR, "validate.h5")
+    test_file = os.path.join(DATA_DIR, "validation.h5")
     test_sources = os.path.join(DATA_DIR, "sources_validation.h5")
 
     output_mode = "prediction"
@@ -190,14 +194,13 @@ def evaluate(model, args):
     assert len(X_groundTruth_list) == len(X_predict_list) == args.num_timeSteps
     timesteps = args.num_timeSteps
     total_num = X_groundTruth_list[0].shape[0]
-    height = X_predict_list[0].shape[1]
-    width = X_predict_list[0].shape[2]
+    height = X_predict_list[0].shape[-2]
+    width = X_predict_list[0].shape[-1]
 
     n_plot = args.num_plot
     if n_plot > total_num:
         n_plot = total_num
-    aspect_ratio = float(height) / width
-    plt.figure(figsize=(timesteps, (2 * aspect_ratio)))
+    plt.figure(figsize=(timesteps * width, 2 * height))
     gs = gridspec.GridSpec(2, timesteps)
     gs.update(wspace=0.0, hspace=0.0)
     plot_save_dir = os.path.join(RESULTS_SAVE_DIR, "prediction_plots/")
@@ -208,7 +211,7 @@ def evaluate(model, args):
         for t in range(timesteps):
             ## plot the ground truth.
             plt.subplot(gs[t])
-            plt.imshow(X_groundTruth_list[t][i, ...], interpolation="none")
+            plt.imshow(X_groundTruth_list[t][i, ...].transpose((1, 2, 0)), interpolation="none")
             plt.tick_params(
                 axis="both",
                 which="both",
@@ -224,7 +227,7 @@ def evaluate(model, args):
 
             ## plot the predictions.
             plt.subplot(gs[t + timesteps])
-            plt.imshow(X_predict_list[t][i, ...], interpolation="none")
+            plt.imshow(X_predict_list[t][i, ...].transpose((1, 2, 0)), interpolation="none")
             plt.tick_params(
                 axis="both",
                 which="both",
@@ -262,12 +265,12 @@ def checkpoint_loader(args):
         print("Download complete. Loading model artifacts...")
         with tarfile.open(checkpoint_path, "r:gz") as tarf:
             members = tarf.getmembers()
-            for members in members:
+            for member in members:
                 if "model" in member.name:
                     model_file_member = member
-            model_file = os.path.abspath(os.path.join(args.data_dir, "..", "model.pth"))
-            tarf.extract(model_file_member, model_file)
-            checkpoint = torch.load(model_file)
+            model_file_dir = os.path.abspath(os.path.join(args.data_dir, ".."))
+            tarf.extract(model_file_member, model_file_dir)
+            checkpoint = torch.load(os.path.join(model_file_dir, model_file_member.name))
             print("Done.")
     else:
         print("Loading from local directory...", end="")
@@ -311,7 +314,6 @@ if __name__ == "__main__":
         R_filter_sizes,
         output_mode="prediction",
         data_format=args.data_format,
-        return_sequences=True,
     )
     print(prednet)
     prednet.cuda()
@@ -322,15 +324,13 @@ if __name__ == "__main__":
     #     print(k, v.size())
 
     ## 使用自己训练的参数
-    checkpoint_file = args.checkpoint_file
     try:
-        checkpoint = checkpoint_loader(checkpoint_file)
+        checkpoint = checkpoint_loader(args)
     except Exception:
         raise (
-            RuntimeError("Cannot load the checkpoint file named %s!" % checkpoint_file)
+            RuntimeError("Cannot load the checkpoint file.")
         )
-    state_dict = checkpoint["state_dict"]
-    prednet.load_state_dict(state_dict)
+    prednet.load_state_dict(checkpoint)
 
     ## 直接使用作者提供的预训练参数
     # state_dict_file = './model_data_keras2/preTrained_weights_forPyTorch.pkl'
