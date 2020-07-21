@@ -51,6 +51,15 @@ def arg_parse():
         help="number of total epochs to run",
     )
     parser.add_argument(
+        "--non-local",
+        default=True,
+        type=bool,
+        help="Indicates that the model files should be downloaded from a remote repo.",
+    )
+    parser.add_argument(
+        "--num_plot", default=40, type=int, metavar="N", help="how many images to plot"
+    )
+    parser.add_argument(
         "--batch_size", default=32, type=int, metavar="N", help="The size of batch"
     )
     parser.add_argument(
@@ -199,7 +208,7 @@ def train(model, args):
 
     optimizer = torch.optim.Adam(prednet.parameters(), lr=args.lr)
     # This is not the same LR scheduler as the original paper but supports loss observations
-    lr_maker = lr_scheduler.StepLR(optimizer=optimizer, step_size=75, gamma=0.1)
+    lr_maker = lr_scheduler.StepLR(optimizer=optimizer, step_size=3000, gamma=0.1)
     printCircle = args.printCircle
     for e in range(args.epochs):
         tr_loss = 0.0
