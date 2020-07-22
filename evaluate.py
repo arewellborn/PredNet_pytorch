@@ -159,17 +159,17 @@ def evaluate(model, args):
         input_shape = (
             batch_size,
             args.num_timeSteps,
-            n_channels,
-            img_height,
-            img_width,
+            args.n_channels,
+            args.img_height,
+            args.img_width,
         )
     else:
         input_shape = (
             batch_size,
             args.num_timeSteps,
-            img_height,
-            img_width,
-            n_channels,
+            args.img_height,
+            args.img_width,
+            args.n_channels,
         )
     initial_states = prednet.get_initial_states(input_shape)
     predictions = prednet(X_test, initial_states)
@@ -200,7 +200,8 @@ def evaluate(model, args):
     n_plot = args.num_plot
     if n_plot > total_num:
         n_plot = total_num
-    plt.figure(figsize=(timesteps * width, 2 * height))
+    aspect_ratio = float(height) / width
+    plt.figure(figsize=(timesteps, (2 * aspect_ratio)))
     gs = gridspec.GridSpec(2, timesteps)
     gs.update(wspace=0.0, hspace=0.0)
     plot_save_dir = os.path.join(RESULTS_SAVE_DIR, "prediction_plots/")
