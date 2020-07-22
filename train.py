@@ -357,4 +357,5 @@ if __name__ == "__main__":
     torch.save(prednet.cpu().state_dict(), save_path)
     if args.evaluate:
         prednet.output_mode = 'prediction'
+        prednet.cuda()
         evaluate(prednet, args)
