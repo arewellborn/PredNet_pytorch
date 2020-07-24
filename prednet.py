@@ -354,7 +354,7 @@ class PredNet(nn.Module):
         # [TODO] padding here is not very clear. Is `0` here is the `SAME` mode in Keras?
         self.pool = nn.MaxPool2d(kernel_size=2, stride=2, padding=0)
 
-    def step(self, A, states):
+    def step(self, A, states, prior_information_model):
         """
         这个step函数是和原代码中的`step`函数是等价的. 是PredNet的核心逻辑所在.
         类比于标准LSTM的实现方式, 这个step函数的角色相当于LSTMCell, 而下面的forward函数相当于LSTM类.
@@ -441,6 +441,9 @@ class PredNet(nn.Module):
             Ahat = self.conv_layers["Ahat"][2 * lay](
                 R_list[lay]
             )  # Ahat是R的卷积, 故将同层同时刻的R输入. 这里千万注意: 每个`lay`其实对应的是两个组件: 卷积层+非线性激活层, 所以这里需要用(2 * lay)来索引`lay`对应的卷积层, 用(2 * lay + 1)来索引`lay`对应的非线性激活函数层. 下面对A的处理也是一样.
+            if lay == 0:
+                # Add prior information model to prediction before activation
+                Ahat += prior_information_model
             Ahat = self.conv_layers["Ahat"][2 * lay + 1](Ahat)  # 勿忘非线性激活.下面对A的处理也是一样.
             if lay == 0:
                 # Ahat = torch.min(Ahat, self.pixel_max)            # 错误(keras中的表示方式)
@@ -518,7 +521,7 @@ class PredNet(nn.Module):
             states += [frame_prediction, (timestep + 1)]
         return output, states
 
-    def forward(self, A0_withTimeStep, initial_states):
+    def forward(self, A0_withTimeStep, initial_states, prior_information_models):
         """
         A0_withTimeStep is the input from dataloader. Its shape is: (batch_size, timesteps, 3, Height, Width).
             说白了, 这个A0_withTimeStep就是dataloader加载出来的原始图像, 即最底层(layer 0)的A, 只不过在batch_size和timestep两个维度扩展了.
@@ -553,7 +556,8 @@ class PredNet(nn.Module):
                 一个超级层(`super layer`)实现, 即本身就是一层. 所以这里就没有for lay循环了.
             """
             A0 = A0_withTimeStep[t, ...]
-            output, hidden_states = self.step(A0, hidden_states)
+            prior_information_model = prior_information_models[t]
+            output, hidden_states = self.step(A0, hidden_states, prior_information_model)
             output_list.append(output)
             # hidden_states 不需要保留,只需让其在时间步内进行`长江后浪推前浪`式的迭代即可.
 
