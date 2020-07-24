@@ -398,7 +398,7 @@ class PredNet(nn.Module):
             ):  # 第一个时间步内inputs还是Tensor类型, 但是过一遍网络之后, 以后的时间步中就都是Variable类型了.
                 inputs = Variable(inputs, requires_grad=True)
 
-#             print(lay, type(inputs), inputs.size())  # 正确的情况下, 举例如下:
+            #             print(lay, type(inputs), inputs.size())  # 正确的情况下, 举例如下:
             # lay3: torch.Size([8, 576, 16, 20])  [576 = 384(E_l^t) + 192(R_l^(t-1))]
             # lay2: torch.Size([8, 480, 32, 40])  [480 = 192(E_l^t) +  96(R_l^(t-1)) + 192(R_(l+1)^t)]
             # lay1: torch.Size([8, 240, 64, 80])  [240 =  96(E_l^t) +  48(R_l^(t-1)) +  96(R_(l+1)^t)]
@@ -444,7 +444,7 @@ class PredNet(nn.Module):
             Ahat = self.conv_layers["Ahat"][2 * lay + 1](Ahat)  # 勿忘非线性激活.下面对A的处理也是一样.
             if lay == 0:
                 # Add prior information model to prediction to Ahat
-                A_func = get_activationFunc('relu')
+                A_func = get_activationFunc("relu")
                 prior_information_model = A_func(prior_information_model)
                 Ahat += prior_information_model
                 # Ahat = torch.min(Ahat, self.pixel_max)            # 错误(keras中的表示方式)
@@ -457,9 +457,9 @@ class PredNet(nn.Module):
                 # if self.output_mode == 'prediction':
                 #     break
 
-#             print('&' * 10, lay)
-#             print('Ahat', Ahat.size())  # torch.Size([batch_size, 3, 128, 160])
-#             print('A', A.size())        # 原来A0直接用的是从dataloader中加载出来的数据, 所以打印的是torch.Size([batch_size, 10, 3, 128, 160]), 这就是问题所在: dataloader返回的数据是(batch_size, timesteps, (image_shape)), 而实际上在RNN中用的是将每个时间步分开的. 现在将核心逻辑解耦出来形成`step`函数, A0就变成torch.Size([batch_size, 3, 128, 160])这个维度了.
+            #             print('&' * 10, lay)
+            #             print('Ahat', Ahat.size())  # torch.Size([batch_size, 3, 128, 160])
+            #             print('A', A.size())        # 原来A0直接用的是从dataloader中加载出来的数据, 所以打印的是torch.Size([batch_size, 10, 3, 128, 160]), 这就是问题所在: dataloader返回的数据是(batch_size, timesteps, (image_shape)), 而实际上在RNN中用的是将每个时间步分开的. 现在将核心逻辑解耦出来形成`step`函数, A0就变成torch.Size([batch_size, 3, 128, 160])这个维度了.
             # print('&' * 20)
 
             # compute errors
@@ -540,7 +540,6 @@ class PredNet(nn.Module):
             0, 1
         )  # (b, t, c, h, w) -> (t, b, c, h, w)
 
-
         num_timesteps = A0_withTimeStep.size()[0]
 
         hidden_states = initial_states  # 赋值为hidden_states是为了在下面的循环中可以无痛使用
@@ -558,7 +557,9 @@ class PredNet(nn.Module):
             """
             A0 = A0_withTimeStep[t, ...]
             prior_information_model = prior_information_models[t]
-            output, hidden_states = self.step(A0, hidden_states, prior_information_model)
+            output, hidden_states = self.step(
+                A0, hidden_states, prior_information_model
+            )
             output_list.append(output)
             # hidden_states 不需要保留,只需让其在时间步内进行`长江后浪推前浪`式的迭代即可.
 
