@@ -66,6 +66,7 @@ class SequenceGenerator(data.Dataset):
         varName = resList[0]
         h5f = h5py.File(data_file, "r")
         self.X = h5f[varName][:]  # X will be like (n_images, cols, rows, channels)
+        self.P = h5f['prior_information_models'][:]
 
         resList = re.findall(pattern, source_file)
         varName = resList[0]
@@ -127,18 +128,13 @@ class SequenceGenerator(data.Dataset):
             index (int): Index
 
         Returns:
-            tuple: (stacked images, target) where target is NOT class_index of the target class
-                BUT the order of frames in sorting task.
+            tuple: (stacked images, prior_information_models)
         """
         idx = self.possible_starts[index]
         image_group = self.preprocess(self.X[idx : (idx + self.num_timeSteps)])
+        prior_information_models = self.preprocess(self.P[idx : (idx + self.num_timeSteps)])
 
-        if self.output_mode == "error":
-            target = 0.0  # model outputs errors, so y should be zeros
-        elif self.output_mode == "prediction":
-            target = image_group  # output actual pixels
-
-        return image_group, target
+        return image_group, prior_information_models
 
     def preprocess(self, X):
         return X.astype(np.float32) / 255.0
