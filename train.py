@@ -41,7 +41,10 @@ def arg_parse():
         "--mode", default="train", type=str, help="train or evaluate (default: train)"
     )
     parser.add_argument(
-        "--evaluate", default=True, type=bool, help="evaluate after training. (default: true)"
+        "--evaluate",
+        default=True,
+        type=bool,
+        help="evaluate after training. (default: true)",
     )
     parser.add_argument(
         "--epochs",
@@ -220,10 +223,11 @@ def train(model, args):
             input_shape
         )  # 原网络貌似不是stateful的, 故这里再每个epoch开始时重新初始化(如果是stateful的, 则只在全部的epoch开始时初始化一次)
         states = initial_states
-        for step, (frameGroup, target) in enumerate(dataLoader):
+        for step, (frameGroup, prior_information_models) in enumerate(dataLoader):
             #             print(frameGroup.size())   # [torch.FloatTensor of size 16x12x80x80]
             batch_frames = Variable(frameGroup.cuda())
-            output = prednet(batch_frames, states)
+            prior_information_models = Variable(prior_information_models.cuda())
+            output = prednet(batch_frames, states, prior_information_models)
 
             # '''进行按照timestep和layer对error进行加权.'''
             ## 1. 按layer加权(巧妙利用广播. NOTE: 这里的error列表里的每个元素是Variable类型的矩阵, 需要转成numpy矩阵类型才可以用切片.)
@@ -356,6 +360,6 @@ if __name__ == "__main__":
     save_path = os.path.join(args.model_dir, "model.pth")
     torch.save(prednet.cpu().state_dict(), save_path)
     if args.evaluate:
-        prednet.output_mode = 'prediction'
+        prednet.output_mode = "prediction"
         prednet.cuda()
         evaluate(prednet, args)
