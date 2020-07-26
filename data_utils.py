@@ -66,7 +66,7 @@ class SequenceGenerator(data.Dataset):
         varName = resList[0]
         h5f = h5py.File(data_file, "r")
         self.X = h5f[varName][:]  # X will be like (n_images, cols, rows, channels)
-        self.P = h5f['prior_information_models'][:]
+        self.P = h5f["prior_information_models"][:]
 
         resList = re.findall(pattern, source_file)
         varName = resList[0]
@@ -132,7 +132,9 @@ class SequenceGenerator(data.Dataset):
         """
         idx = self.possible_starts[index]
         image_group = self.preprocess(self.X[idx : (idx + self.num_timeSteps)])
-        prior_information_models = self.preprocess(self.P[idx : (idx + self.num_timeSteps)])
+        prior_information_models = self.preprocess(
+            self.P[idx : (idx + self.num_timeSteps)]
+        )
 
         return image_group, prior_information_models
 
@@ -147,9 +149,15 @@ class SequenceGenerator(data.Dataset):
         X_all = np.zeros(
             (self.N_sequences, self.num_timeSteps) + self.img_shape, np.float32
         )
+        all_prior_models = np.zeros(
+            (self.N_sequences, self.num_timeSteps) + self.img_shape, np.float32
+        )
         for i, idx in enumerate(self.possible_starts):
             X_all[i] = self.preprocess(self.X[idx : (idx + self.num_timeSteps)])
-        return X_all
+            all_prior_models[i] = self.preprocess(
+                self.P[idx : (idx + self.num_timeSteps)]
+            )
+        return X_all, all_prior_models
 
 
 class ZcrDataLoader(object):
