@@ -140,9 +140,10 @@ def evaluate(model, args):
     dataLoader = ZcrDataLoader(
         test_file, test_sources, output_mode, sequence_start_mode, N_seq, args
     ).dataLoader()
-    X_test = dataLoader.dataset.create_all()
+    X_test, prior_information_models = dataLoader.dataset.create_all()
     # print('X_test.shape', X_test.shape)       # (83, 10, 3, 128, 160)
     X_test = X_test[:8, ...]  # to overcome `cuda runtime error: out of memory`
+    prior_information_models = prior_information_models[:8]
     batch_size = X_test.shape[0]
     X_groundTruth = np.transpose(
         X_test, (1, 0, 2, 3, 4)
@@ -154,6 +155,9 @@ def evaluate(model, args):
         )  # (batch_size, 3, 128, 160)
 
     X_test = Variable(torch.from_numpy(X_test).float().cuda())
+    prior_information_models = Variable(
+        torch.from_numpy(prior_information_models).float().cuda()
+    )
 
     if prednet.data_format == "channels_first":
         input_shape = (
@@ -172,7 +176,7 @@ def evaluate(model, args):
             args.n_channels,
         )
     initial_states = prednet.get_initial_states(input_shape)
-    predictions = prednet(X_test, initial_states)
+    predictions = prednet(X_test, initial_states, prior_information_models)
     # print(predictions)
     # print(predictions[0].size())    # torch.Size([8, 3, 128, 160])
 
@@ -191,7 +195,12 @@ def evaluate(model, args):
     #     f.write("Previous Frame MSE: %f" % MSE_previous)
 
     # Plot some predictions
-    assert len(X_groundTruth_list) == len(X_predict_list) == args.num_timeSteps
+    assert (
+        len(X_groundTruth_list)
+        == len(X_predict_list)
+        == len(prior_information_models)
+        == args.num_timeSteps
+    )
     timesteps = args.num_timeSteps
     total_num = X_groundTruth_list[0].shape[0]
     height = X_predict_list[0].shape[-2]
@@ -212,7 +221,9 @@ def evaluate(model, args):
         for t in range(timesteps):
             ## plot the ground truth.
             plt.subplot(gs[t])
-            plt.imshow(X_groundTruth_list[t][i, ...].transpose((1, 2, 0)), interpolation="none")
+            plt.imshow(
+                X_groundTruth_list[t][i, ...].transpose((1, 2, 0)), interpolation="none"
+            )
             plt.tick_params(
                 axis="both",
                 which="both",
@@ -228,7 +239,9 @@ def evaluate(model, args):
 
             ## plot the predictions.
             plt.subplot(gs[t + timesteps])
-            plt.imshow(X_predict_list[t][i, ...].transpose((1, 2, 0)), interpolation="none")
+            plt.imshow(
+                X_predict_list[t][i, ...].transpose((1, 2, 0)), interpolation="none"
+            )
             plt.tick_params(
                 axis="both",
                 which="both",
@@ -271,7 +284,9 @@ def checkpoint_loader(args):
                     model_file_member = member
             model_file_dir = os.path.abspath(os.path.join(args.data_dir, ".."))
             tarf.extract(model_file_member, model_file_dir)
-            checkpoint = torch.load(os.path.join(model_file_dir, model_file_member.name))
+            checkpoint = torch.load(
+                os.path.join(model_file_dir, model_file_member.name)
+            )
             print("Done.")
     else:
         print("Loading from local directory...", end="")
@@ -328,9 +343,7 @@ if __name__ == "__main__":
     try:
         checkpoint = checkpoint_loader(args)
     except Exception:
-        raise (
-            RuntimeError("Cannot load the checkpoint file.")
-        )
+        raise (RuntimeError("Cannot load the checkpoint file."))
     prednet.load_state_dict(checkpoint)
 
     ## 直接使用作者提供的预训练参数
