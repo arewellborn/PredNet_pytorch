@@ -271,7 +271,7 @@ class PredNet(nn.Module):
         equal to the `build` method in original version.
         """
         # i: input, f: forget, c: cell, o: output
-        self.conv_layers = {item: [] for item in ["i", "f", "c", "o", "A", "Ahat"]}
+        self.conv_layers = {item: [] for item in ["i", "f", "c", "o", "A", "Ahat", "ihat"]}
         lstm_list = ["i", "f", "c", "o"]
 
         for item in sorted(self.conv_layers.keys()):
@@ -335,6 +335,13 @@ class PredNet(nn.Module):
                             padding=int(
                                 (self.R_filter_sizes[lay] - 1) / 2
                             ),  # the `SAME` mode
+                        )
+                    )
+                elif item == 'ihat':
+                    self.conv_layers[item].append(
+                        nn.Linear(
+                            in_features=(3 * 240 * 240),
+                            out_features=(3 * 240 * 240),
                         )
                     )
 
@@ -444,8 +451,7 @@ class PredNet(nn.Module):
             Ahat = self.conv_layers["Ahat"][2 * lay + 1](Ahat)  # 勿忘非线性激活.下面对A的处理也是一样.
             if lay == 0:
                 # Add prior information model to prediction
-                A_func = get_activationFunc("relu")
-                prior_information_model = A_func(prior_information_model)
+                prior_information_model = self.conv_layers['ihat'][0](prior_information_model)
                 Ahat += prior_information_model
                 # Ahat = torch.min(Ahat, self.pixel_max)            # 错误(keras中的表示方式)
                 Ahat[
@@ -539,6 +545,7 @@ class PredNet(nn.Module):
         A0_withTimeStep = A0_withTimeStep.transpose(
             0, 1
         )  # (b, t, c, h, w) -> (t, b, c, h, w)
+        prior_information_models = prior_information_models.transpose(0, 1)
 
         num_timesteps = A0_withTimeStep.size()[0]
 
