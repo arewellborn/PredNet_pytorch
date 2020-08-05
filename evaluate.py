@@ -142,8 +142,8 @@ def evaluate(model, args):
     ).dataLoader()
     X_test, prior_information_models = dataLoader.dataset.create_all()
     # print('X_test.shape', X_test.shape)       # (83, 10, 3, 128, 160)
-    X_test = X_test[:8, ...]  # to overcome `cuda runtime error: out of memory`
-    prior_information_models = prior_information_models[:8]
+    X_test = X_test[:args.batch_size, ...]  # to overcome `cuda runtime error: out of memory`
+    prior_information_models = prior_information_models[:args.batch_size]
     batch_size = X_test.shape[0]
     X_groundTruth = np.transpose(
         X_test, (1, 0, 2, 3, 4)
