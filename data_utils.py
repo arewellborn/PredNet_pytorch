@@ -94,7 +94,7 @@ class SequenceGenerator(data.Dataset):
                 [
                     i
                     for i in range(self.num_samples - self.num_timeSteps)
-                    if self.sources[i] == self.sources[i + self.num_timeSteps - 1]
+                    if self.sources[i] == self.sources[i + self.num_timeSteps]
                 ]
             )
         elif (
@@ -105,7 +105,7 @@ class SequenceGenerator(data.Dataset):
             while curr_location < self.num_samples - self.num_timeSteps + 1:
                 if (
                     self.sources[curr_location]
-                    == self.sources[curr_location + self.num_timeSteps - 1]
+                    == self.sources[curr_location + self.num_timeSteps]
                 ):
                     possible_starts.append(curr_location)
                     curr_location += self.num_timeSteps
@@ -133,7 +133,7 @@ class SequenceGenerator(data.Dataset):
         idx = self.possible_starts[index]
         image_group = self.preprocess(self.X[idx : (idx + self.num_timeSteps)])
         prior_information_models = self.preprocess(
-            self.P[idx : (idx + self.num_timeSteps)]
+            self.P[idx + 1: (idx + self.num_timeSteps + 1)]
         )
 
         return image_group, prior_information_models
@@ -155,7 +155,7 @@ class SequenceGenerator(data.Dataset):
         for i, idx in enumerate(self.possible_starts):
             X_all[i] = self.preprocess(self.X[idx : (idx + self.num_timeSteps)])
             all_prior_models[i] = self.preprocess(
-                self.P[idx : (idx + self.num_timeSteps)]
+                self.P[idx + 1: (idx + self.num_timeSteps + 1)]
             )
         return X_all, all_prior_models
 
