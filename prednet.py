@@ -443,7 +443,7 @@ class PredNet(nn.Module):
             )  # Ahat是R的卷积, 故将同层同时刻的R输入. 这里千万注意: 每个`lay`其实对应的是两个组件: 卷积层+非线性激活层, 所以这里需要用(2 * lay)来索引`lay`对应的卷积层, 用(2 * lay + 1)来索引`lay`对应的非线性激活函数层. 下面对A的处理也是一样.
             Ahat = self.conv_layers["Ahat"][2 * lay + 1](Ahat)  # 勿忘非线性激活.下面对A的处理也是一样.
             if lay == 0:
-                # Add prior information model to prediction to Ahat
+                # Add prior information model to prediction
                 A_func = get_activationFunc("relu")
                 prior_information_model = A_func(prior_information_model)
                 Ahat += prior_information_model
