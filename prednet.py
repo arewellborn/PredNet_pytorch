@@ -271,7 +271,7 @@ class PredNet(nn.Module):
         equal to the `build` method in original version.
         """
         # i: input, f: forget, c: cell, o: output
-        self.conv_layers = {item: [] for item in ["i", "f", "c", "o", "A", "Ahat", "ihat"]}
+        self.conv_layers = {item: [] for item in ["i", "f", "c", "o", "A", "Ahat"]}
         lstm_list = ["i", "f", "c", "o"]
 
         for item in sorted(self.conv_layers.keys()):
@@ -335,13 +335,6 @@ class PredNet(nn.Module):
                             padding=int(
                                 (self.R_filter_sizes[lay] - 1) / 2
                             ),  # the `SAME` mode
-                        )
-                    )
-                elif item == 'ihat':
-                    self.conv_layers[item].append(
-                        nn.Linear(
-                            in_features=(3 * 240 * 240),
-                            out_features=(3 * 240 * 240),
                         )
                     )
 
@@ -445,14 +438,17 @@ class PredNet(nn.Module):
 
         # Update feedforward path starting from the bottom.
         for lay in range(self.num_layers):
-            Ahat = self.conv_layers["Ahat"][2 * lay](
-                R_list[lay]
-            )  # Ahat是R的卷积, 故将同层同时刻的R输入. 这里千万注意: 每个`lay`其实对应的是两个组件: 卷积层+非线性激活层, 所以这里需要用(2 * lay)来索引`lay`对应的卷积层, 用(2 * lay + 1)来索引`lay`对应的非线性激活函数层. 下面对A的处理也是一样.
-            Ahat = self.conv_layers["Ahat"][2 * lay + 1](Ahat)  # 勿忘非线性激活.下面对A的处理也是一样.
-            if lay == 0:
+            if lay != 0:
+                Ahat = self.conv_layers["Ahat"][2 * lay](
+                    R_list[lay]
+                )  # Ahat是R的卷积, 故将同层同时刻的R输入. 这里千万注意: 每个`lay`其实对应的是两个组件: 卷积层+非线性激活层, 所以这里需要用(2 * lay)来索引`lay`对应的卷积层, 用(2 * lay + 1)来索引`lay`对应的非线性激活函数层. 下面对A的处理也是一样.
+                Ahat = self.conv_layers["Ahat"][2 * lay + 1](Ahat)  # 勿忘非线性激活.下面对A的处理也是一样.
+            else:
+                Ahat = self.conv_layers["Ahat"][2 * lay](
+                    R_list[lay] + prior_information_model
+                )
+                Ahat = self.conv_layers["Ahat"][2 * lay + 1](Ahat)  # 勿忘非线性激活.下面对A的处理也是一样.
                 # Add prior information model to prediction
-                prior_information_model = self.conv_layers['ihat'][0](prior_information_model)
-                Ahat += prior_information_model
                 # Ahat = torch.min(Ahat, self.pixel_max)            # 错误(keras中的表示方式)
                 Ahat[
                     Ahat > self.pixel_max
