@@ -11,6 +11,12 @@ import torch.nn as nn
 import torch.nn.functional as F
 from torch.autograd import Variable
 
+from s2cnn import SO3Convolution
+from s2cnn import S2Convolution
+from s2cnn import so3_integrate
+from s2cnn import so3_near_identity_grid
+from s2cnn import s2_near_identity_grid
+
 
 def hard_sigmoid(x):
     """
@@ -281,35 +287,82 @@ class PredNet(nn.Module):
                     in_channels = self.R_stack_sizes[
                         lay
                     ]  # 因为Ahat是对R的输出进行卷积, 所以输入Ahat的channel数就是相同层中R的输出channel数.
+                    # Construct the grid for SO3 convolution.
+                    # Note that we don't need to scale max_beta since we are upsampling after the "A" block
+                    grid_so3_n = so3_near_identity_grid(
+                        n_alpha=self.n_alpha,
+                        max_beta=max_beta,
+                        n_beta=self.n_beta,
+                        max_gamma=self.max_gamma,
+                        n_gamma=self.n_gamma,
+                    )
+                    # Create SO3 conbvolution. Bandwidth is not scaled for same reasons as max_beta
                     self.conv_layers["Ahat"].append(
-                        nn.Conv2d(
+                        nn.SO3Convolution(
                             in_channels=in_channels,
                             out_channels=self.stack_sizes[lay],
-                            kernel_size=self.Ahat_filter_sizes[lay],
-                            stride=(1, 1),
-                            padding=int(
-                                (self.Ahat_filter_sizes[lay] - 1) / 2
-                            ),  # the `SAME` mode (i.e.,(kernel_size - 1) / 2)
+                            b_in=self.bandwidth,
+                            b_out=self.bandwidth,
+                            grid=grid_so3_n,
                         )
                     )
                     act = "relu" if lay == 0 else self.A_activation
                     self.conv_layers["Ahat"].append(get_activationFunc(act))
 
                 elif item == "A":
-                    if self.isNotTopestLayer(lay):  # 这里只是控制一下层数(比其他如Ahat等少一层)
+                    if (
+                        self.isNotTopestLayer(lay) and lay > 0
+                    ):  # 这里只是控制一下层数(比其他如Ahat等少一层)
                         # NOTE: 这里是从第二层(lay = 1)开始构建A的(因为整个网络的最低一层(layer0)的A就是原始图像(可以将layer0的A视为一个`恒等层`, 即输入图像, 输出原封不动的图像))
                         in_channels = (
                             self.stack_sizes[lay] * 2
                         )  # A卷积层输入特征数(in_channels)是对应层E的特征数,E包含(Ahat-A)和(A-Ahat)两部分,故x2. [从paper的Fig.1左图来看, E是Ahat的输出和A进行相减, 之后拼接.]
+                        # Set max_beta and output bandwidth so that it pools outputs (only if lay > 0)
+                        max_beta = self.max_beta * 2
+                        b_out = self.bandwidth / 2
+                        # Create grid
+                        grid_so3_n = so3_near_identity_grid(
+                            n_alpha=self.n_alpha,
+                            max_beta=max_beta,
+                            n_beta=self.n_beta,
+                            max_gamma=self.max_gamma,
+                            n_gamma=self.n_gamma,
+                        )
+                        # Create SO3 convolution.
                         self.conv_layers["A"].append(
-                            nn.Conv2d(
+                            nn.SO3Convolution(
                                 in_channels=in_channels,
-                                out_channels=self.stack_sizes[lay + 1],
-                                kernel_size=self.A_filter_sizes[lay],
-                                stride=(1, 1),
-                                padding=int(
-                                    (self.A_filter_sizes[lay] - 1) / 2
-                                ),  # the `SAME` mode
+                                out_channels=self.stack_sizes[lay],
+                                b_in=self.bandwidth,
+                                b_out=b_out,
+                                grid=grid_so3_n,
+                            )
+                        )
+                        self.conv_layers["A"].append(
+                            get_activationFunc(self.A_activation)
+                        )
+                    elif lay == 0:
+                        # in_channels should match the number of channels in the input image
+                        in_channels = self.stack_sizes[lay]
+                        # No pooling on the first layer
+                        max_beta = self.max_beta
+                        b_out = self.bandwidth
+                        # Create grid
+                        grid_s2 = s2_near_identity_grid(
+                            n_alpha=self.n_alpha,
+                            max_beta=max_beta,
+                            n_beta=self.n_beta,
+                            max_gamma=self.max_gamma,
+                            n_gamma=self.n_gamma,
+                        )
+                        # Create S2 convolution.
+                        self.conv_layers["A"].append(
+                            nn.S2Convolution(
+                                in_channels=in_channels,
+                                out_channels=self.stack_sizes[lay],
+                                b_in=self.bandwidth,
+                                b_out=b_out,
+                                grid=grid_s2,
                             )
                         )
                         self.conv_layers["A"].append(
@@ -326,15 +379,27 @@ class PredNet(nn.Module):
                     if self.isNotTopestLayer(lay):
                         in_channels += self.R_stack_sizes[lay + 1]
                     # LSTM中的i,f,c,o的非线性激活函数层放在forward中实现. (因为这里i,f,o要用hard_sigmoid函数, Keras中LSTM默认就是hard_sigmoid, 但是pytorch中需自己实现)
+                    # Need to recreate upsampling in R_out
+                    if item == "o" and lay > 0:
+                        max_beta = self.max_beta / 2
+                        b_in = self.bandwidth * 2
+                    else:
+                        max_beta = self.max_beta
+                        b_in = self.bandwidth
+                    grid_so3_n = so3_near_identity_grid(
+                        n_alpha=self.n_alpha,
+                        max_beta=max_beta,
+                        n_beta=self.n_beta,
+                        max_gamma=self.max_gamma,
+                        n_gamma=self.n_gamma,
+                    )
                     self.conv_layers[item].append(
-                        nn.Conv2d(
+                        nn.SO3Convolution(
                             in_channels=in_channels,
-                            out_channels=self.R_stack_sizes[lay],
-                            kernel_size=self.R_filter_sizes[lay],
-                            stride=(1, 1),
-                            padding=int(
-                                (self.R_filter_sizes[lay] - 1) / 2
-                            ),  # the `SAME` mode
+                            out_channels=self.stack_sizes[lay],
+                            b_in=b_in,
+                            b_out=self.bandwidth,
+                            grid=grid_so3_n,
                         )
                     )
 
@@ -346,13 +411,15 @@ class PredNet(nn.Module):
         #     [PyTorch]: http://pytorch.org/docs/master/_modules/torch/nn/modules/upsampling.html
         #     [Keras  ]: keras-master/keras/layers/convolution.py/`class UpSampling2D(Layer)`
         # self.upSample = nn.Upsample(size = (2, 2), mode = 'nearest')  # 是错误的! pytorch中的scale_factor参数对应到keras中的size参数.
-        self.upSample = nn.Upsample(scale_factor=2, mode="nearest")
+        # NOTE: Upsampling is now done in the convolutions by adjusting b_in and b_out
+        # self.upSample = nn.Upsample(scale_factor=2, mode="nearest")
         # see the source code in:
         #     [PyTorch]: http://pytorch.org/docs/master/_modules/torch/nn/modules/pooling.html#MaxPool2d
         #     [Keras  ]: keras-master/keras/layers/pooling.py/``
         # `pool_size` in Keras is equal to `kernel_size` in pytorch.
         # [TODO] padding here is not very clear. Is `0` here is the `SAME` mode in Keras?
-        self.pool = nn.MaxPool2d(kernel_size=2, stride=2, padding=0)
+        # NOTE: Pooling is now done within the convolutions by adjusting b_in and b_out
+        # self.pool = nn.MaxPool2d(kernel_size=2, stride=2, padding=0)
 
     def step(self, A, states):
         """
@@ -398,7 +465,7 @@ class PredNet(nn.Module):
             ):  # 第一个时间步内inputs还是Tensor类型, 但是过一遍网络之后, 以后的时间步中就都是Variable类型了.
                 inputs = Variable(inputs, requires_grad=True)
 
-#             print(lay, type(inputs), inputs.size())  # 正确的情况下, 举例如下:
+            # print(lay, type(inputs), inputs.size())  # 正确的情况下, 举例如下:
             # lay3: torch.Size([8, 576, 16, 20])  [576 = 384(E_l^t) + 192(R_l^(t-1))]
             # lay2: torch.Size([8, 480, 32, 40])  [480 = 192(E_l^t) +  96(R_l^(t-1)) + 192(R_(l+1)^t)]
             # lay1: torch.Size([8, 240, 64, 80])  [240 =  96(E_l^t) +  48(R_l^(t-1)) +  96(R_(l+1)^t)]
@@ -429,20 +496,27 @@ class PredNet(nn.Module):
             c_list.insert(0, c_next)
             R_list.insert(0, R_next)
 
-            if lay > 0:
-                # R_up = self.upSample(R_next).data     # 注意: 这里出来的是Variable, 上面要append到inputs列表里的都是FloatTensor, 所以这里需要变成Tensor形式, 即加个`.data`
-                R_up = self.upSample(
-                    R_next
-                )  # NOTE: 这个就是困扰好久, 导致loss.backward()报错的原因: torch.cat()中将Tensor和Variable混用导致的错误!
-                # print(R_up.size())  # lay3: torch.Size([8, 192, 32, 40])
+            # NOTE: Upsampling is now done in the convolutions by adjusting b_in and b_out
+            # if lay > 0:
+            # R_up = self.upSample(R_next).data     # 注意: 这里出来的是Variable, 上面要append到inputs列表里的都是FloatTensor, 所以这里需要变成Tensor形式, 即加个`.data`
+            # R_up = self.upSample(
+            #     R_next
+            # )  # NOTE: 这个就是困扰好久, 导致loss.backward()报错的原因: torch.cat()中将Tensor和Variable混用导致的错误!
+            # print(R_up.size())  # lay3: torch.Size([8, 192, 32, 40])
 
         # Update feedforward path starting from the bottom.
         for lay in range(self.num_layers):
+            x_size = R_list[lay].size()
             Ahat = self.conv_layers["Ahat"][2 * lay](
                 R_list[lay]
             )  # Ahat是R的卷积, 故将同层同时刻的R输入. 这里千万注意: 每个`lay`其实对应的是两个组件: 卷积层+非线性激活层, 所以这里需要用(2 * lay)来索引`lay`对应的卷积层, 用(2 * lay + 1)来索引`lay`对应的非线性激活函数层. 下面对A的处理也是一样.
             Ahat = self.conv_layers["Ahat"][2 * lay + 1](Ahat)  # 勿忘非线性激活.下面对A的处理也是一样.
             if lay == 0:
+                # Need to reduce the matix to a 2D image
+                Ahat = Ahat.contiguous()
+                Ahat = Ahat.view(*x_size)  # [batch, channel, height, width, depth]
+                # All values in the depth dimention are equivalent barring rounding errors
+                Ahat = Ahat[..., 0]  # [batch, channel, height, width]
                 # Ahat = torch.min(Ahat, self.pixel_max)            # 错误(keras中的表示方式)
                 Ahat[
                     Ahat > self.pixel_max
@@ -453,9 +527,9 @@ class PredNet(nn.Module):
                 # if self.output_mode == 'prediction':
                 #     break
 
-#             print('&' * 10, lay)
-#             print('Ahat', Ahat.size())  # torch.Size([batch_size, 3, 128, 160])
-#             print('A', A.size())        # 原来A0直接用的是从dataloader中加载出来的数据, 所以打印的是torch.Size([batch_size, 10, 3, 128, 160]), 这就是问题所在: dataloader返回的数据是(batch_size, timesteps, (image_shape)), 而实际上在RNN中用的是将每个时间步分开的. 现在将核心逻辑解耦出来形成`step`函数, A0就变成torch.Size([batch_size, 3, 128, 160])这个维度了.
+            # print('&' * 10, lay)
+            # print('Ahat', Ahat.size())  # torch.Size([batch_size, 3, 128, 160])
+            # print('A', A.size())        # 原来A0直接用的是从dataloader中加载出来的数据, 所以打印的是torch.Size([batch_size, 10, 3, 128, 160]), 这就是问题所在: dataloader返回的数据是(batch_size, timesteps, (image_shape)), 而实际上在RNN中用的是将每个时间步分开的. 现在将核心逻辑解耦出来形成`step`函数, A0就变成torch.Size([batch_size, 3, 128, 160])这个维度了.
             # print('&' * 20)
 
             # compute errors
@@ -491,7 +565,8 @@ class PredNet(nn.Module):
                     E_list[lay]
                 )  # 对E进行卷积+池化之后, 得到同时刻上一层的A, 如果该层已经是最顶层了, 就不用了
                 A = self.conv_layers["A"][2 * lay + 1](A)  # 勿忘非线性激活.
-                A = self.pool(A)  # target for next layer
+                # NOTE: Pooling is now done in the convolution by adjusting b_in and b_out
+                # A = self.pool(A)  # target for next layer
 
         if self.output_layer_type is None:
             if self.output_mode == "prediction":
@@ -535,7 +610,6 @@ class PredNet(nn.Module):
         A0_withTimeStep = A0_withTimeStep.transpose(
             0, 1
         )  # (b, t, c, h, w) -> (t, b, c, h, w)
-
 
         num_timesteps = A0_withTimeStep.size()[0]
 
