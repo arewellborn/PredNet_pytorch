@@ -41,7 +41,10 @@ def arg_parse():
         "--mode", default="train", type=str, help="train or evaluate (default: train)"
     )
     parser.add_argument(
-        "--evaluate", default=True, type=bool, help="evaluate after training. (default: true)"
+        "--evaluate",
+        default=True,
+        type=bool,
+        help="evaluate after training. (default: true)",
     )
     parser.add_argument(
         "--epochs",
@@ -117,10 +120,7 @@ def arg_parse():
         help="The width of input frame (default: 160)",
     )
     parser.add_argument(
-        "--bandwidth",
-        default=120,
-        type=int,
-        help="The bandwidth used for s2cnn"
+        "--bandwidth", default=120, type=int, help="The bandwidth used for s2cnn"
     )
     parser.add_argument(
         "--layer_loss_weightsMode",
@@ -362,6 +362,6 @@ if __name__ == "__main__":
     save_path = os.path.join(args.model_dir, "model.pth")
     torch.save(prednet.cpu().state_dict(), save_path)
     if args.evaluate:
-        prednet.output_mode = 'prediction'
+        prednet.output_mode = "prediction"
         prednet.cuda()
         evaluate(prednet, args)
