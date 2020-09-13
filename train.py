@@ -117,6 +117,12 @@ def arg_parse():
         help="The width of input frame (default: 160)",
     )
     parser.add_argument(
+        "--bandwidth",
+        default=120,
+        type=int,
+        help="The bandwidth used for s2cnn"
+    )
+    parser.add_argument(
         "--layer_loss_weightsMode",
         default="L_0",
         type=str,
