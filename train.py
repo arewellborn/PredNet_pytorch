@@ -332,12 +332,10 @@ if __name__ == "__main__":
     data_dir = args.data_dir
     load_model = args.load_model
     data_format = args.data_format
+    bandwidth = args.bandwidth
 
     stack_sizes = (n_channels, 48, 96, 192)
     R_stack_sizes = stack_sizes
-    A_filter_sizes = (3, 3, 3)
-    Ahat_filter_sizes = (3, 3, 3, 3)
-    R_filter_sizes = (3, 3, 3, 3)
 
     # Load previous model if path is given
     if load_model:
@@ -348,9 +346,7 @@ if __name__ == "__main__":
         prednet = PredNet(
             stack_sizes,
             R_stack_sizes,
-            A_filter_sizes,
-            Ahat_filter_sizes,
-            R_filter_sizes,
+            bandwidth,
             output_mode="error",
             data_format=data_format,
         )

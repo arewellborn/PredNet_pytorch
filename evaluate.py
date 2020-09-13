@@ -94,6 +94,9 @@ def arg_parse():
         help="The width of input frame (default: 160)",
     )
     parser.add_argument(
+        "--bandwidth", default=120, type=int, help="The bandwidth used for s2cnn"
+    )
+    parser.add_argument(
         "--bucket",
         default="",
         type=str,
@@ -294,25 +297,15 @@ if __name__ == "__main__":
     n_channels = args.n_channels
     img_height = args.img_height
     img_width = args.img_width
-
-    # stack_sizes       = eval(args.stack_sizes)
-    # R_stack_sizes     = eval(args.R_stack_sizes)
-    # A_filter_sizes    = eval(args.A_filter_sizes)
-    # Ahat_filter_sizes = eval(args.Ahat_filter_sizes)
-    # R_filter_sizes    = eval(args.R_filter_sizes)
+    bandwidth = args.bandwidth
 
     stack_sizes = (n_channels, 48, 96, 192)
     R_stack_sizes = stack_sizes
-    A_filter_sizes = (3, 3, 3)
-    Ahat_filter_sizes = (3, 3, 3, 3)
-    R_filter_sizes = (3, 3, 3, 3)
 
     prednet = PredNet(
         stack_sizes,
         R_stack_sizes,
-        A_filter_sizes,
-        Ahat_filter_sizes,
-        R_filter_sizes,
+        bandwidth,
         output_mode="prediction",
         data_format=args.data_format,
     )
