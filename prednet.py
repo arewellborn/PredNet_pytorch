@@ -379,13 +379,9 @@ class PredNet(nn.Module):
                     if self.isNotTopestLayer(lay):
                         in_channels += self.R_stack_sizes[lay + 1]
                     # LSTM中的i,f,c,o的非线性激活函数层放在forward中实现. (因为这里i,f,o要用hard_sigmoid函数, Keras中LSTM默认就是hard_sigmoid, 但是pytorch中需自己实现)
-                    # Need to recreate upsampling in R_out
-                    if item == "o" and lay > 0:
-                        max_beta = self.max_beta / 2
-                        b_in = self.bandwidth * 2
-                    else:
-                        max_beta = self.max_beta
-                        b_in = self.bandwidth
+                    # Need to recreate upsampling in all of the operations in the LSTM cell
+                    max_beta = self.max_beta / 2
+                    b_in = self.bandwidth * 2
                     grid_so3_n = so3_near_identity_grid(
                         n_alpha=self.n_alpha,
                         max_beta=max_beta,
@@ -511,12 +507,9 @@ class PredNet(nn.Module):
                 R_list[lay]
             )  # Ahat是R的卷积, 故将同层同时刻的R输入. 这里千万注意: 每个`lay`其实对应的是两个组件: 卷积层+非线性激活层, 所以这里需要用(2 * lay)来索引`lay`对应的卷积层, 用(2 * lay + 1)来索引`lay`对应的非线性激活函数层. 下面对A的处理也是一样.
             Ahat = self.conv_layers["Ahat"][2 * lay + 1](Ahat)  # 勿忘非线性激活.下面对A的处理也是一样.
+            # Integrate over our spherical signal before computing errors.
+            Ahat = so3_integrate(Ahat)
             if lay == 0:
-                # Need to reduce the matix to a 2D image
-                Ahat = Ahat.contiguous()
-                Ahat = Ahat.view(*x_size)  # [batch, channel, height, width, depth]
-                # All values in the depth dimention are equivalent barring rounding errors
-                Ahat = Ahat[..., 0]  # [batch, channel, height, width]
                 # Ahat = torch.min(Ahat, self.pixel_max)            # 错误(keras中的表示方式)
                 Ahat[
                     Ahat > self.pixel_max
