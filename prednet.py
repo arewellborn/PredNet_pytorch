@@ -78,23 +78,26 @@ class PredNet(nn.Module):
             - Number of channels in the representation (R) modules.
             - Length must equal length of stack_sizes, but the number of channels per layer can be different.
             - 即pytorch中卷积层的out_channels参数.
-        A_filter_sizes:
-            - Filter sizes for the target (A) modules. (except the target (A) in lowest layer (i.e., input image))
-            - Has length of len(stack_sizes) - 1.
-            - e.g., (3, 3) would mean that targets for layers 2 and 3 are computed by a 3x3 convolution of
-              the errors (E) from the layer below (followed by max-pooling)
-            - 即pytorch中卷积层的kernel_size.
-        Ahat_filter_sizes:
-            - Filter sizes for the prediction (Ahat) modules.
-            - Has length equal to length of stack_sizes.
-            - e.g., (3, 3, 3) would mean that the predictions for each layer are computed by a 3x3 convolution
-              of the representation (R) modules at each layer.
-            - 即pytorch中卷积层的kernel_size.
-        R_filter_sizes:
-            - Filter sizes for the representation (R) modules.
-            - Has length equal to length of stack_sizes.
-            - Corresponds to the filter sizes for all convolutions in the LSTM.
-            - 即pytorch中卷积层的kernel_size.
+        bandwidth:
+            - The maximum frequency for a convolution is known as the bandwidth
+            - Related to the resolution of the spatial grid
+            - Since information is only effectively on half of the globe for sky images, this can be set to 1/2 of the 
+              width of an image (120 for an image that is 240x240)
+        n_alpha:
+            - Gives the number of learned parameters of the rings around the pole
+            - Usually set to some low number (see s2cnn documentation for more details)
+        max_beta:
+            - Adapts the size of the kernel as angle measured from the north pole
+            - Emulates spatial pooling or upsampling when adjusted along with the bandwidth
+        n_beta:
+            - Number of rings of the kernel around the equator, equally spaced in [β=0, β=max_beta]
+            - The choice n_beta = 1 corresponds to a small 3x3 kernel in conv2d
+        max_gamma:
+            - The kernel spans over the fiber SO(2) between γ∈[0, max_gamma]
+            - Setting max_gamma ≨ 2π results in the kernel not seeing the responses of all kernel orientations simultaneously and is in general unfavored
+        n_gamma:
+            - Number of learned parameters on the fiber
+            - Typically set equal to n_alpha
         pixel_max:
             - The maximum pixel value.
             - Used to clip the pixel-layer prediction.
@@ -134,9 +137,12 @@ class PredNet(nn.Module):
         self,
         stack_sizes,
         R_stack_sizes,
-        A_filter_sizes,
-        Ahat_filter_sizes,
-        R_filter_sizes,
+        bandwidth,
+        n_alpha=6,
+        max_beta=np.pi/16,
+        n_beta=1,
+        max_gamma=2*np.pi,
+        n_gamma=6,
         pixel_max=1.0,
         error_activation="relu",
         A_activation="relu",
@@ -151,12 +157,12 @@ class PredNet(nn.Module):
         self.num_layers = len(stack_sizes)
         assert len(R_stack_sizes) == self.num_layers
         self.R_stack_sizes = R_stack_sizes
-        assert len(A_filter_sizes) == self.num_layers - 1
-        self.A_filter_sizes = A_filter_sizes
-        assert len(Ahat_filter_sizes) == self.num_layers
-        self.Ahat_filter_sizes = Ahat_filter_sizes
-        assert len(R_filter_sizes) == self.num_layers
-        self.R_filter_sizes = R_filter_sizes
+        self.bandwidth = bandwidth
+        self.n_alpha = n_alpha
+        self.max_beta = max_beta
+        self.n_beta = n_beta
+        self.max_gamma = max_gamma
+        self.n_gamma = n_gamma
 
         self.pixel_max = pixel_max
         self.error_activation = error_activation
