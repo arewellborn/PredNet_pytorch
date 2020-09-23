@@ -202,6 +202,7 @@ def train(model, args):
             n_channels,
             img_height,
             img_width,
+            img_width, # We need a third channel for 3D convolutions
         )
     else:
         input_shape = (
@@ -209,6 +210,7 @@ def train(model, args):
             args.num_timeSteps,
             img_height,
             img_width,
+            img_width, # We need a third channel for 3D convolutions
             n_channels,
         )
 

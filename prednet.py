@@ -193,20 +193,22 @@ class PredNet(nn.Module):
         ), "Images must be channels_first to work with pytorch convolutions."
         self.data_format = data_format
         if self.data_format == "channels_first":
-            self.channel_axis = -3
-            self.row_axis = -2
-            self.col_axis = -1
-        else:
-            self.channel_axis = -1
+            self.channel_axis = -4
             self.row_axis = -3
             self.col_axis = -2
+            self.depth_axis = -1
+        else:
+            self.channel_axis = -1
+            self.row_axis = -4
+            self.col_axis = -3
+            self.depth_axis = -2
 
         self.make_layers()
 
     def get_initial_states(self, input_shape):
         """
-        input_shape is like: (batch_size, timeSteps, Height, Width, 3)
-                         or: (batch_size, timeSteps, 3, Height, Width)
+        input_shape is like: (batch_size, timeSteps, Height, Width, Depth, 3)
+                         or: (batch_size, timeSteps, 3, Height, Width, Depth)
         """
         init_height = input_shape[
             self.row_axis
@@ -214,10 +216,14 @@ class PredNet(nn.Module):
         init_width = input_shape[
             self.col_axis
         ]  # equal to `init_nb_cols` in original version
+        init_depth = input_shape[
+            self.depth_axis
+        ]
 
         base_initial_state = np.zeros(input_shape)
         non_channel_axis = -1 if self.data_format == "channels_first" else -2
-        for _ in range(2):
+        # Not sure what this for loop does but I'm afraid to remove it...
+        for _ in range(3):
             base_initial_state = np.sum(base_initial_state, axis=non_channel_axis)
         base_initial_state = np.sum(base_initial_state, axis=1)  # (batch_size, 3)
 
@@ -239,13 +245,14 @@ class PredNet(nn.Module):
                 downSample_factor = 2 ** lay  # 下采样缩放因子
                 row = init_height // downSample_factor
                 col = init_width // downSample_factor
+                depth = init_depth // downSample_factor
                 if sta in ["R", "c"]:
                     stack_size = self.R_stack_sizes[lay]
                 elif sta == "E":
                     stack_size = self.stack_sizes[lay] * 2
                 elif sta == "Ahat":
                     stack_size = self.stack_sizes[lay]
-                output_size = stack_size * row * col  # flattened size
+                output_size = stack_size * row * col * depth  # flattened size
                 reducer = np.zeros(
                     (input_shape[self.channel_axis], output_size)
                 )  # (3, output_size)
@@ -254,9 +261,9 @@ class PredNet(nn.Module):
                 )  # (batch_size, output_size)
 
                 if self.data_format == "channels_first":
-                    output_shape = (-1, stack_size, row, col)
+                    output_shape = (-1, stack_size, row, col, depth)
                 else:
-                    output_shape = (-1, row, col, stack_size)
+                    output_shape = (-1, row, col, depth, stack_size)
                 initial_state = Variable(
                     torch.from_numpy(np.reshape(initial_state, output_shape))
                     .float()
@@ -302,13 +309,15 @@ class PredNet(nn.Module):
                         max_gamma=self.max_gamma,
                         n_gamma=self.n_gamma,
                     )
-                    # Create SO3 conbvolution. Bandwidth is not scaled for same reasons as max_beta
+                    # Downsample bandwidth with layers
+                    bandwidth = self.bandwidth // downSample_factor
+                    # Create SO3 convolution.
                     self.conv_layers["Ahat"].append(
-                        nn.SO3Convolution(
-                            in_channels=in_channels,
-                            out_channels=self.stack_sizes[lay],
-                            b_in=self.bandwidth,
-                            b_out=self.bandwidth,
+                        SO3Convolution(
+                            nfeature_in=in_channels,
+                            nfeature_out=self.stack_sizes[lay],
+                            b_in=bandwidth,
+                            b_out=bandwidth,
                             grid=grid_so3_n,
                         )
                     )
@@ -323,9 +332,11 @@ class PredNet(nn.Module):
                         in_channels = (
                             self.stack_sizes[lay] * 2
                         )  # A卷积层输入特征数(in_channels)是对应层E的特征数,E包含(Ahat-A)和(A-Ahat)两部分,故x2. [从paper的Fig.1左图来看, E是Ahat的输出和A进行相减, 之后拼接.]
+                        # Downsample bandwidth with layers
+                        bandwidth = self.bandwidth // downSample_factor
                         # Set max_beta and output bandwidth so that it pools outputs (only if lay > 0)
                         max_beta = self.max_beta * 2
-                        b_out = self.bandwidth / 2
+                        b_out = bandwidth // 2
                         # Create grid
                         grid_so3_n = so3_near_identity_grid(
                             n_alpha=self.n_alpha,
@@ -336,10 +347,10 @@ class PredNet(nn.Module):
                         )
                         # Create SO3 convolution.
                         self.conv_layers["A"].append(
-                            nn.SO3Convolution(
-                                in_channels=in_channels,
-                                out_channels=self.stack_sizes[lay],
-                                b_in=self.bandwidth,
+                            SO3Convolution(
+                                nfeature_in=in_channels,
+                                nfeature_out=self.stack_sizes[lay],
+                                b_in=bandwidth,
                                 b_out=b_out,
                                 grid=grid_so3_n,
                             )
@@ -350,24 +361,21 @@ class PredNet(nn.Module):
                     elif lay == 0:
                         # in_channels should match the number of channels in the input image
                         in_channels = self.stack_sizes[lay]
-                        # No pooling on the first layer
-                        max_beta = self.max_beta
-                        b_out = self.bandwidth
+                        # Downsample bandwidth with layers
+                        bandwidth = self.bandwidth // downSample_factor
                         # Create grid
                         grid_s2 = s2_near_identity_grid(
                             n_alpha=self.n_alpha,
-                            max_beta=max_beta,
+                            max_beta=self.max_beta,
                             n_beta=self.n_beta,
-                            max_gamma=self.max_gamma,
-                            n_gamma=self.n_gamma,
                         )
                         # Create S2 convolution.
                         self.conv_layers["A"].append(
-                            nn.S2Convolution(
-                                in_channels=in_channels,
-                                out_channels=self.stack_sizes[lay],
-                                b_in=self.bandwidth,
-                                b_out=b_out,
+                            S2Convolution(
+                                nfeature_in=in_channels,
+                                nfeature_out=self.stack_sizes[lay],
+                                b_in=bandwidth,
+                                b_out=bandwidth,
                                 grid=grid_s2,
                             )
                         )
@@ -385,9 +393,11 @@ class PredNet(nn.Module):
                     if self.isNotTopestLayer(lay):
                         in_channels += self.R_stack_sizes[lay + 1]
                     # LSTM中的i,f,c,o的非线性激活函数层放在forward中实现. (因为这里i,f,o要用hard_sigmoid函数, Keras中LSTM默认就是hard_sigmoid, 但是pytorch中需自己实现)
+                    # Downsample bandwidth with layers
+                    bandwidth = self.bandwidth // downSample_factor
                     # Need to recreate upsampling in all of the operations in the LSTM cell
-                    max_beta = self.max_beta / 2
-                    b_in = self.bandwidth * 2
+                    max_beta = self.max_beta // 2
+                    b_out = bandwidth * 2
                     grid_so3_n = so3_near_identity_grid(
                         n_alpha=self.n_alpha,
                         max_beta=max_beta,
@@ -396,11 +406,11 @@ class PredNet(nn.Module):
                         n_gamma=self.n_gamma,
                     )
                     self.conv_layers[item].append(
-                        nn.SO3Convolution(
-                            in_channels=in_channels,
-                            out_channels=self.stack_sizes[lay],
-                            b_in=b_in,
-                            b_out=self.bandwidth,
+                        SO3Convolution(
+                            nfeature_in=in_channels,
+                            nfeature_out=self.stack_sizes[lay],
+                            b_in=bandwidth,
+                            b_out=b_out,
                             grid=grid_so3_n,
                         )
                     )
@@ -467,7 +477,9 @@ class PredNet(nn.Module):
             ):  # 第一个时间步内inputs还是Tensor类型, 但是过一遍网络之后, 以后的时间步中就都是Variable类型了.
                 inputs = Variable(inputs, requires_grad=True)
 
-            # print(lay, type(inputs), inputs.size())  # 正确的情况下, 举例如下:
+            print(lay, type(inputs), inputs.size())  # 正确的情况下, 举例如下:
+            print('b_in', self.conv_layers["i"][lay].b_in)
+            print('b_out', self.conv_layers["i"][lay].b_out)
             # lay3: torch.Size([8, 576, 16, 20])  [576 = 384(E_l^t) + 192(R_l^(t-1))]
             # lay2: torch.Size([8, 480, 32, 40])  [480 = 192(E_l^t) +  96(R_l^(t-1)) + 192(R_(l+1)^t)]
             # lay1: torch.Size([8, 240, 64, 80])  [240 =  96(E_l^t) +  48(R_l^(t-1)) +  96(R_(l+1)^t)]
@@ -499,7 +511,8 @@ class PredNet(nn.Module):
             R_list.insert(0, R_next)
 
             # NOTE: Upsampling is now done in the convolutions by adjusting b_in and b_out
-            # if lay > 0:
+            if lay > 0:
+                R_up = R_next
             # R_up = self.upSample(R_next).data     # 注意: 这里出来的是Variable, 上面要append到inputs列表里的都是FloatTensor, 所以这里需要变成Tensor形式, 即加个`.data`
             # R_up = self.upSample(
             #     R_next
