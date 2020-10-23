@@ -371,7 +371,7 @@ class PredNet(nn.Module):
         if self.extrap_start_time is not None:
             timestep = states[-1]
             if (
-                timestep >= self.t_extrap
+                timestep >= self.extrap_start_time
             ):  # if past self.extrap_start_time, the previous prediction will be treated as the actual.
                 A = states[-2]
             else:
