@@ -157,7 +157,7 @@ class SequenceGenerator(data.Dataset):
         for i, idx in enumerate(self.possible_starts):
             X_all[i] = self.preprocess(self.X[idx : (idx + self.step * self.num_timeSteps) : self.step])
             all_prior_models[i] = self.preprocess(
-                self.P[idx + 1: (idx + self.step * self.num_timeSteps + 1) : self.step + 1]
+                self.P[idx + 1: (idx + self.step * self.num_timeSteps + 1) : self.step]
             )
         return X_all, all_prior_models
 
