@@ -129,6 +129,12 @@ def arg_parse():
         metavar="N",
         help="number of timesteps used for sequences in training (default: 10)",
     )
+    parser.add_argument(
+        "--step",
+        default=1,
+        type=int,
+        help="The step size for image sequences (default: 1)",
+    )
     parser.add_argument("--shuffle", default=True, type=bool, help="shuffle or not")
     parser.add_argument(
         "--training-data-dir",

@@ -59,6 +59,7 @@ class SequenceGenerator(data.Dataset):
         sequence_start_mode="all",
         N_seq=None,
         data_format="channels_first",
+        step=1,
     ):
         super(SequenceGenerator, self).__init__()
         pattern = re.compile(r".*?h5/(.+?)\.h5")
@@ -85,6 +86,7 @@ class SequenceGenerator(data.Dataset):
         self.data_format = data_format
         self.img_shape = self.X[0].shape
         self.num_samples = self.X.shape[0]
+        self.step = step
 
         if (
             self.sequence_start_mode == "all"
@@ -92,8 +94,8 @@ class SequenceGenerator(data.Dataset):
             self.possible_starts = np.array(
                 [
                     i
-                    for i in range(self.num_samples - self.num_timeSteps)
-                    if self.sources[i] == self.sources[i + self.num_timeSteps - 1]
+                    for i in range(self.num_samples - self.step * self.num_timeSteps)
+                    if self.sources[i] == self.sources[i + self.step * self.num_timeSteps - 1]
                 ]
             )
         elif (
@@ -101,13 +103,13 @@ class SequenceGenerator(data.Dataset):
         ):  # create sequences where each unique frame is in at most one sequence
             curr_location = 0
             possible_starts = []
-            while curr_location < self.num_samples - self.num_timeSteps + 1:
+            while curr_location < self.num_samples - self.step * self.num_timeSteps + 1:
                 if (
                     self.sources[curr_location]
-                    == self.sources[curr_location + self.num_timeSteps - 1]
+                    == self.sources[curr_location + self.step * self.num_timeSteps - 1]
                 ):
                     possible_starts.append(curr_location)
-                    curr_location += self.num_timeSteps
+                    curr_location += self.step * self.num_timeSteps
                 else:
                     curr_location += 1
             self.possible_starts = possible_starts
@@ -131,7 +133,7 @@ class SequenceGenerator(data.Dataset):
                 BUT the order of frames in sorting task.
         """
         idx = self.possible_starts[index]
-        image_group = self.preprocess(self.X[idx : (idx + self.num_timeSteps)])
+        image_group = self.preprocess(self.X[idx : (idx + self.step * self.num_timeSteps) : self.step])
 
         if self.output_mode == "error":
             target = 0.0  # model outputs errors, so y should be zeros
@@ -152,7 +154,7 @@ class SequenceGenerator(data.Dataset):
             (self.N_sequences, self.num_timeSteps) + self.img_shape, np.float32
         )
         for i, idx in enumerate(self.possible_starts):
-            X_all[i] = self.preprocess(self.X[idx : (idx + self.num_timeSteps)])
+            X_all[i] = self.preprocess(self.X[idx : (idx + self.step * self.num_timeSteps) : self.step])
         return X_all
 
 
@@ -181,6 +183,7 @@ class ZcrDataLoader(object):
             self.sequence_start_mode,
             self.N_seq,
             self.args.data_format,
+            self.args.step,
         )
         # NOTE: 将drop_last设置为True, 可以删除最后一个不完整的batch(e.g.,当数据集大小不能被batch_size整除时, 最后一个batch的样本数是不够一个batch_size的, 这可能会导致某些要用到上一次结果的代码因为旧size和新size不匹配而报错(PredNet就有这个问题, 故这里将drop_last设置为True))
         dataloader = data.DataLoader(
