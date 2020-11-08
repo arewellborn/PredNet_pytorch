@@ -302,6 +302,7 @@ if __name__ == "__main__":
         prednet.output_mode = "prediction"
         prednet.data_format = data_format
         prednet.extrap_start_time = args.extrapolate_start
+        print('Existing model successsfully lodaded.')
     else:
         prednet = PredNet(
             stack_sizes,
