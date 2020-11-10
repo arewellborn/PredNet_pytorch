@@ -63,6 +63,13 @@ def arg_parse():
         "--lr", default=0.001, type=float, metavar="LR", help="initial learning rate"
     )
     parser.add_argument(
+        "--workers",
+        default=4,
+        type=int,
+        metavar="N",
+        help="number of data loading workers (default: 4)",
+    )
+    parser.add_argument(
         "--printCircle",
         default=10,
         type=int,
@@ -211,7 +218,7 @@ def train(model, args):
             # '''进行按照timestep和layer对error进行加权.'''
             ## 1. 按layer加权(巧妙利用广播. NOTE: 这里的error列表里的每个元素是Variable类型的矩阵, 需要转成numpy矩阵类型才可以用切片.)
             num_layer = len(stack_sizes)
-            output_target_pairs = zip(output, target)
+            output_target_pairs = zip(output, target.cuda())
 
             ## 2. 按timestep进行加权. (paper: equally weight all timesteps except the first)
             num_timeSteps = args.num_timeSteps
@@ -226,7 +233,7 @@ def train(model, args):
 
             # 0.5 to match scale of loss when trained in error mode (positive and negative errors split)
             error_list = [
-                0.5 * torch.mean(torch.abs(y_hat - y), dim=-1) for y_hat, y in output_target_pairs
+                torch.sum(0.5 * torch.mean(torch.abs(y_hat - y), dim=-3)) for y_hat, y in output_target_pairs
             ]  # 是一个Variable的列表
             total_error = error_list[0] * time_loss_weights[0]
             for err, time_weight in zip(error_list[1:], time_loss_weights[1:]):
@@ -298,10 +305,18 @@ if __name__ == "__main__":
 
     # Load previous model if path is given
     if load_model:
-        prednet = torch.load_model(load_model)
-        prednet.output_mode = "prediction"
-        prednet.data_format = data_format
-        prednet.extrap_start_time = args.extrapolate_start
+        prednet = PredNet(
+            stack_sizes,
+            R_stack_sizes,
+            A_filter_sizes,
+            Ahat_filter_sizes,
+            R_filter_sizes,
+            output_mode="prediction",
+            data_format=data_format,
+            extrap_start_time = args.extrapolate_start
+        )
+        prednet.load_state_dict(torch.load(load_model))
+        prednet.train()
         print('Existing model successsfully lodaded.')
     else:
         prednet = PredNet(
