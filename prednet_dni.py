@@ -35,7 +35,7 @@ class PredNetDNI(nn.Module):
             self.pool_list.append(nn.AvgPool2D(kernel_size=2 ** n, stride=2 ** n))
         
         # We are concatenating and flattening all elements for the out gate for all layers
-        in_features = 1 * (3 + 48 + 96 + 192) * 240 * 240 # batch * all layer features * h * w
+        in_features = 8 * (3 + 48 + 96 + 192) * 30 * 30 # batch * all layer features * (h / 2 ^ 3) * (w / 2 ^ 3)
         self.linear_layer = Variable(nn.Linear(in_features=in_features, out_features=1), requires_grad=True)
 
     def forward(self, A0_withTimeStep, initial_states):
@@ -48,15 +48,12 @@ class PredNetDNI(nn.Module):
         num_timesteps = A0_withTimeStep.size()[0]
 
         hidden_states = initial_states  # 赋值为hidden_states是为了在下面的循环中可以无痛使用
-        output_list = (
-            []
-        )  # output需要保留下来: `error`模式下需要按照layer和timestep进行加权得到最终的loss; `prediction`模式下需要输出每个时间步的预测图像(如timestep为10的话, 输出10个图像)
+        # No need to retain the prednet predictions since we only want the DNI prediction
         for t in range(num_timesteps):
             A0 = A0_withTimeStep[t, ...]
-            output, hidden_states = self.prednet(A0, hidden_states)
-            output_list.append(output)
+            prednet_output, hidden_states = self.prednet(A0, hidden_states)
 
-        # Concat out gate layers after pooling
+        # Concat out gate layers across channel/feature axis after pooling
         output = []
         for i, layer in enumerate(self.prednet.conv_layers["o"]):
             if i == 0:
