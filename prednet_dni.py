@@ -31,7 +31,7 @@ class PredNetDNI(nn.Module):
 
         # Spatially average pool lower layers to match upper layer dims
         self.pool_list = nn.ModuleList()
-        for n in range(1, 4):
+        for n in reversed(range(1, 4)):
             self.pool_list.append(nn.AvgPool2D(kernel_size=2 ** n, stride=2 ** n))
         
         # We are concatenating and flattening all elements for the out gate for all layers
