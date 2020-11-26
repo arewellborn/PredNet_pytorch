@@ -24,6 +24,8 @@ class PredNetDNI(nn.Module):
         prednet,
     ):
         super(PredNetDNI, self).__init__()
+        self.prednet = prednet
+        self.get_initial_states = prednet.get_initial_states
 
         # Freeze all of the existing PredNet layers
         for param in self.prednet.parameters():
