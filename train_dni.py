@@ -205,10 +205,10 @@ def train(model, args):
 		min_trainLoss_in_epoch = float("inf")
 		startTime_epoch = time.time()
 
-		initial_states _dni= prednet_dni.prednet.get_initial_states(
+		initial_states_dni = prednet_dni.get_initial_states(
 			input_shape
 		)  # 原网络貌似不是stateful的, 故这里再每个epoch开始时重新初始化(如果是stateful的, 则只在全部的epoch开始时初始化一次)
-		states = initial_states
+		states = initial_states_dni
 		for step, (frameGroup, target) in enumerate(dataLoader):
 			#             print(frameGroup.size())   # [torch.FloatTensor of size 16x12x80x80]
 			batch_frames = Variable(frameGroup.cuda())
