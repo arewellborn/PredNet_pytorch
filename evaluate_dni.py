@@ -5,6 +5,7 @@ import argparse
 import numpy as np
 import tarfile
 import json
+import csv
 
 import matplotlib
 
@@ -137,47 +138,33 @@ def evaluate(model, args):
     output_mode = "prediction"
     sequence_start_mode = "unique"
     N_seq = None
+    # Set up dataloader
     dataLoader = ZcrDataLoader(
         test_file, test_sources, output_mode, sequence_start_mode, N_seq, args
     ).dataLoader()
-    X_test = dataLoader.dataset.create_all()
-    # print('X_test.shape', X_test.shape)       # (83, 10, 3, 128, 160)
-    X_test = X_test[:8, ...]  # to overcome `cuda runtime error: out of memory`
-    batch_size = X_test.shape[0]
-    X_groundTruth = np.transpose(
-        X_test, (1, 0, 2, 3, 4)
-    )  # (timesteps, batch_size, 3, 128, 160)
-    X_groundTruth_list = []
-    for t in range(X_groundTruth.shape[0]):
-        X_groundTruth_list.append(
-            np.squeeze(X_groundTruth[t, ...])
-        )  # (batch_size, 3, 128, 160)
+    # Set up initial states
+    initial_states_dni= prednet_dni.get_initial_states(
+        input_shape
+    )
+    states = initial_states_dni
+    # Generate predictions
+    prediction_target = []
+    for step, (frameGroup, target) in enumerate(dataLoader):
+        batch_frames = Variable(frameGroup.cuda())
+        output = prednet_dni(batch_frames, states)
+        prediction_target.append([output, target])
 
-    X_test = Variable(torch.from_numpy(X_test).float().cuda())
+    # Save predictions and targets in a csv
+    save_dir = os.path.join(RESULTS_SAVE_DIR, "predictions")
+    if not os.path.exists(save_dir):
+        os.mkdir(save_dir)
+    save_loc = os.path.join(save_dir, 'prediction_target.csv')
+    with open(save_loc, 'w', newline='') as csvfile:
+        writer = csv.writer(csvfile)
+        for row in prediction_target:
+            writer.writerow(row)
 
-    initial_states = prednet_dni.prednet.get_initial_states(input_shape)
-    predictions = prednet_dni(X_test, initial_states)
-
-    X_predict_list = [
-        pred.data.cpu().numpy() for pred in predictions
-    ]  # length of X_predict_list is timesteps. 每个元素shape是(batch_size, 3, H, W)
-
-    # Plot some predictions
-    assert len(X_groundTruth_list) == len(X_predict_list) == args.num_timeSteps
-    timesteps = args.num_timeSteps
-    total_num = X_groundTruth_list[0].shape[0]
-    height = X_predict_list[0].shape[-2]
-    width = X_predict_list[0].shape[-1]
-
-    plot_save_dir = os.path.join(RESULTS_SAVE_DIR, "prediction_plots/")
-    if not os.path.exists(plot_save_dir):
-        os.mkdir(plot_save_dir)
-    plot_idx = np.random.permutation(total_num)[:n_plot]
-    for i in plot_idx:
-
-        plt.savefig(plot_save_dir + "plot_" + str(i) + ".png")
-        plt.clf()
-    print('The plots are saved in "%s"! Have a nice day!' % plot_save_dir)
+    print('The DNI data are saved in "%s"! Have a nice day!' % plot_save_dir)
 
 
 def checkpoint_loader(args):
