@@ -96,7 +96,8 @@ class SequenceGenerator(data.Dataset):
                 [
                     i
                     for i in range(self.num_samples - self.step * self.num_timeSteps)
-                    if self.sources[i] == self.sources[i + self.step * self.num_timeSteps - 1]
+                    if self.sources[i]
+                    == self.sources[i + self.step * self.num_timeSteps - 1]
                 ]
             )
         elif (
@@ -133,9 +134,11 @@ class SequenceGenerator(data.Dataset):
             tuple: (stacked images, dni_data)
         """
         idx = self.possible_starts[index]
-        image_group = self.preprocess(self.X[idx : (idx + self.step * self.num_timeSteps) : self.step])
+        image_group = self.preprocess(
+            self.X[idx : (idx + self.step * self.num_timeSteps) : self.step]
+        )
         dni_data = self.preprocess(
-            self.P[idx: (idx + self.step * self.num_timeSteps) : self.step]
+            self.P[idx : (idx + self.step * self.num_timeSteps) : self.step]
         )
 
         return image_group, dni_data
@@ -155,9 +158,11 @@ class SequenceGenerator(data.Dataset):
             (self.N_sequences, self.num_timeSteps) + self.img_shape, np.float32
         )
         for i, idx in enumerate(self.possible_starts):
-            X_all[i] = self.preprocess(self.X[idx : (idx + self.step * self.num_timeSteps) : self.step])
+            X_all[i] = self.preprocess(
+                self.X[idx : (idx + self.step * self.num_timeSteps) : self.step]
+            )
             all_dni[i] = self.preprocess(
-                self.P[idx: (idx + self.step * self.num_timeSteps) : self.step]
+                self.P[idx : (idx + self.step * self.num_timeSteps) : self.step]
             )
         return X_all, all_dni
 

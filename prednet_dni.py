@@ -20,8 +20,7 @@ class PredNetDNI(nn.Module):
     """
 
     def __init__(
-        self,
-        prednet,
+        self, prednet,
     ):
         super(PredNetDNI, self).__init__()
         self.prednet = prednet
@@ -35,10 +34,14 @@ class PredNetDNI(nn.Module):
         self.pool_list = nn.ModuleList()
         for n in reversed(range(1, 4)):
             self.pool_list.append(nn.AvgPool2D(kernel_size=2 ** n, stride=2 ** n))
-        
+
         # We are concatenating and flattening all elements for the out gate for all layers
-        in_features = 8 * (3 + 48 + 96 + 192) * 30 * 30 # batch * all layer features * (h / 2 ^ 3) * (w / 2 ^ 3)
-        self.linear_layer = Variable(nn.Linear(in_features=in_features, out_features=1), requires_grad=True)
+        in_features = (
+            8 * (3 + 48 + 96 + 192) * 30 * 30
+        )  # batch * all layer features * (h / 2 ^ 3) * (w / 2 ^ 3)
+        self.linear_layer = Variable(
+            nn.Linear(in_features=in_features, out_features=1), requires_grad=True
+        )
 
     def forward(self, A0_withTimeStep, initial_states):
 

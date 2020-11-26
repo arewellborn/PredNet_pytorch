@@ -143,9 +143,7 @@ def evaluate(model, args):
         test_file, test_sources, output_mode, sequence_start_mode, N_seq, args
     ).dataLoader()
     # Set up initial states
-    initial_states_dni= prednet_dni.get_initial_states(
-        input_shape
-    )
+    initial_states_dni = prednet_dni.get_initial_states(input_shape)
     states = initial_states_dni
     # Generate predictions
     prediction_target = []
@@ -158,8 +156,8 @@ def evaluate(model, args):
     save_dir = os.path.join(RESULTS_SAVE_DIR, "predictions")
     if not os.path.exists(save_dir):
         os.mkdir(save_dir)
-    save_loc = os.path.join(save_dir, 'prediction_target.csv')
-    with open(save_loc, 'w', newline='') as csvfile:
+    save_loc = os.path.join(save_dir, "prediction_target.csv")
+    with open(save_loc, "w", newline="") as csvfile:
         writer = csv.writer(csvfile)
         for row in prediction_target:
             writer.writerow(row)
@@ -191,7 +189,9 @@ def checkpoint_loader(args):
                     model_file_member = member
             model_file_dir = os.path.abspath(os.path.join(args.data_dir, ".."))
             tarf.extract(model_file_member, model_file_dir)
-            checkpoint = torch.load(os.path.join(model_file_dir, model_file_member.name))
+            checkpoint = torch.load(
+                os.path.join(model_file_dir, model_file_member.name)
+            )
             print("Done.")
     else:
         print("Loading from local directory...", end="")
@@ -248,9 +248,7 @@ if __name__ == "__main__":
     try:
         checkpoint = checkpoint_loader(args)
     except Exception:
-        raise (
-            RuntimeError("Cannot load the checkpoint file.")
-        )
+        raise (RuntimeError("Cannot load the checkpoint file."))
     prednet.load_state_dict(checkpoint)
 
     ## 直接使用作者提供的预训练参数
