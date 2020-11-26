@@ -67,6 +67,7 @@ class SequenceGenerator(data.Dataset):
         varName = resList[0]
         h5f = h5py.File(data_file, "r")
         self.X = h5f[varName][:]  # X will be like (n_images, cols, rows, channels)
+        self.P = h5f["dni"][:]
 
         resList = re.findall(pattern, source_file)
         varName = resList[0]
@@ -129,18 +130,15 @@ class SequenceGenerator(data.Dataset):
             index (int): Index
 
         Returns:
-            tuple: (stacked images, target) where target is NOT class_index of the target class
-                BUT the order of frames in sorting task.
+            tuple: (stacked images, dni_data)
         """
         idx = self.possible_starts[index]
         image_group = self.preprocess(self.X[idx : (idx + self.step * self.num_timeSteps) : self.step])
+        dni_data = self.preprocess(
+            self.P[idx: (idx + self.step * self.num_timeSteps) : self.step]
+        )
 
-        if self.output_mode == "error":
-            target = 0.0  # model outputs errors, so y should be zeros
-        elif self.output_mode == "prediction":
-            target = image_group  # output actual pixels
-
-        return image_group, target
+        return image_group, dni_data
 
     def preprocess(self, X):
         return X.astype(np.float32) / 255.0
@@ -153,9 +151,15 @@ class SequenceGenerator(data.Dataset):
         X_all = np.zeros(
             (self.N_sequences, self.num_timeSteps) + self.img_shape, np.float32
         )
+        all_dni = np.zeros(
+            (self.N_sequences, self.num_timeSteps) + self.img_shape, np.float32
+        )
         for i, idx in enumerate(self.possible_starts):
             X_all[i] = self.preprocess(self.X[idx : (idx + self.step * self.num_timeSteps) : self.step])
-        return X_all
+            all_dni[i] = self.preprocess(
+                self.P[idx: (idx + self.step * self.num_timeSteps) : self.step]
+            )
+        return X_all, all_dni
 
 
 class ZcrDataLoader(object):
