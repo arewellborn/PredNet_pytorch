@@ -219,8 +219,8 @@ def train(model, args):
             batch_frames = frameGroup.cuda()
             _input = prednet_dni(batch_frames, states)
             
-            # Use last DNI measurement
-            target = target[-1].cuda()
+            # Use last DNI measurements for each sequence in the batch
+            target = target[:, -1].cuda()
 
             loss = torch.nn.MSELoss()
             loss = loss(_input, target)

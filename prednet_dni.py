@@ -45,14 +45,9 @@ class PredNetDNI(nn.Module):
         self.linear_layer = nn.Linear(in_features=in_features, out_features=1)
 
     def forward(self, A0_withTimeStep, initial_states):
-
-        # 默认是batch_fist == True的, 即第一维是batch_size, 第二维是timesteps.
-        A0_withTimeStep = A0_withTimeStep.transpose(
-            0, 1
-        )  # (b, t, c, h, w) -> (t, b, c, h, w)
         
-        hidden_states = initial_states  # 赋值为hidden_states是为了在下面的循环中可以无痛使用
-        output, hidden_states = self.prednet(A0_withTimeStep, hidden_states)
+        # hidden_states will return an array of shape (1, batch size) representing the last time step for each sequence 
+        output, hidden_states = self.prednet(A0_withTimeStep, initial_states)
 
         # Get only R_l layers from hidden_states (first batch of states)
         r_layers = hidden_states[:self.num_layers]
