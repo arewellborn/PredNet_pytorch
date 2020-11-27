@@ -14,6 +14,7 @@ from torch.optim import lr_scheduler
 
 # zcr lib
 from prednet import PredNet
+from prednet_dni import PredNetDNI
 from data_utils import ZcrDataLoader
 
 # Import evaluate
@@ -197,6 +198,7 @@ def train(model, args):
     dataLoader = ZcrDataLoader(
         train_file, train_sources, output_mode, sequence_start_mode, N_seq, args
     ).dataLoader()
+    input_shape = (args.batch_size, args.num_timeSteps, n_channels, img_height, img_width)
 
     optimizer = torch.optim.Adam(prednet_dni.parameters(), lr=args.lr)
     # This is not the same LR scheduler as the original paper but supports loss observations
@@ -214,10 +216,13 @@ def train(model, args):
         states = initial_states_dni
         for step, (frameGroup, target) in enumerate(dataLoader):
             #             print(frameGroup.size())   # [torch.FloatTensor of size 16x12x80x80]
-            batch_frames = Variable(frameGroup.cuda())
+            batch_frames = frameGroup.cuda()
             _input = prednet_dni(batch_frames, states)
+            
+            # Use last DNI measurement
+            target = target[-1].cuda()
 
-            loss = nn.MSELoss()
+            loss = torch.nn.MSELoss()
             loss = loss(_input, target)
 
             optimizer.zero_grad()
@@ -225,8 +230,8 @@ def train(model, args):
             optimizer.step()
             lr_maker.step()
 
-            tr_loss += loss.data[0]
-            sum_trainLoss_in_epoch += loss.data[0]
+            tr_loss += loss.item()
+            sum_trainLoss_in_epoch += loss.item()
             if step % printCircle == (printCircle - 1):
                 print(
                     "epoch: [%3d/%3d] | [%4d/%4d]  loss: %.4f  lr: %.5lf"
@@ -293,7 +298,6 @@ if __name__ == "__main__":
             R_filter_sizes,
             output_mode="prediction",
             data_format=data_format,
-            extrap_start_time=args.extrapolate_start,
         )
         prednet.load_state_dict(torch.load(load_model))
         prednet.train()

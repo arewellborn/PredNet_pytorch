@@ -24,6 +24,9 @@ class PredNetDNI(nn.Module):
     ):
         super(PredNetDNI, self).__init__()
         self.prednet = prednet
+        self.num_layers = prednet.num_layers
+        self.row_axis = prednet.row_axis
+        self.col_axis = prednet.col_axis
         self.get_initial_states = prednet.get_initial_states
 
         # Freeze all of the existing PredNet layers
@@ -32,16 +35,14 @@ class PredNetDNI(nn.Module):
 
         # Spatially average pool lower layers to match upper layer dims
         self.pool_list = nn.ModuleList()
-        for n in reversed(range(1, 4)):
-            self.pool_list.append(nn.AvgPool2D(kernel_size=2 ** n, stride=2 ** n))
+        for n in range(1, 4):
+            self.pool_list.append(nn.AvgPool2d(kernel_size=2 ** n, stride=2 ** n))
 
         # We are concatenating and flattening all elements for the out gate for all layers
         in_features = (
-            8 * (3 + 48 + 96 + 192) * 30 * 30
+            7 * (3 + 48 + 96 + 192) * 30 * 30
         )  # batch * all layer features * (h / 2 ^ 3) * (w / 2 ^ 3)
-        self.linear_layer = Variable(
-            nn.Linear(in_features=in_features, out_features=1), requires_grad=True
-        )
+        self.linear_layer = nn.Linear(in_features=in_features, out_features=1)
 
     def forward(self, A0_withTimeStep, initial_states):
 
@@ -49,24 +50,24 @@ class PredNetDNI(nn.Module):
         A0_withTimeStep = A0_withTimeStep.transpose(
             0, 1
         )  # (b, t, c, h, w) -> (t, b, c, h, w)
-
-        num_timesteps = A0_withTimeStep.size()[0]
-
+        
         hidden_states = initial_states  # 赋值为hidden_states是为了在下面的循环中可以无痛使用
-        # No need to retain the prednet predictions since we only want the DNI prediction
-        for t in range(num_timesteps):
-            A0 = A0_withTimeStep[t, ...]
-            prednet_output, hidden_states = self.prednet(A0, hidden_states)
+        output, hidden_states = self.prednet(A0_withTimeStep, hidden_states)
 
+        # Get only R_l layers from hidden_states
+        r_layers = hidden_states[:self.num_layers]
+        
         # Concat out gate layers across channel/feature axis after pooling
         output = []
-        for i, layer in enumerate(self.prednet.conv_layers["o"]):
+        for i, layer in enumerate(reversed(r_layers)):
             if i == 0:
                 output.append(layer)
             else:
                 pool = self.pool_list[i - 1]
                 output.append(pool(layer))
-        output = torch.cat(output, dim=-3)
+        
+        output = torch.cat(output, dim=-3).cuda()
+        output = Variable(output, requires_grad=True)
 
         # Flatten and send to fully-connected linear layer
         output = torch.flatten(output)

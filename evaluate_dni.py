@@ -143,6 +143,7 @@ def evaluate(model, args):
         test_file, test_sources, output_mode, sequence_start_mode, N_seq, args
     ).dataLoader()
     # Set up initial states
+    input_shape = (args.batch_size, args.num_timeSteps, args.n_channels, args.img_height, args.img_width)
     initial_states_dni = prednet_dni.get_initial_states(input_shape)
     states = initial_states_dni
     # Generate predictions
@@ -150,7 +151,7 @@ def evaluate(model, args):
     for step, (frameGroup, target) in enumerate(dataLoader):
         batch_frames = Variable(frameGroup.cuda())
         output = prednet_dni(batch_frames, states)
-        prediction_target.append([output, target])
+        prediction_target.append([output.item(), target[-1].item()])
 
     # Save predictions and targets in a csv
     save_dir = os.path.join(RESULTS_SAVE_DIR, "predictions")
@@ -162,7 +163,7 @@ def evaluate(model, args):
         for row in prediction_target:
             writer.writerow(row)
 
-    print('The DNI data are saved in "%s"! Have a nice day!' % plot_save_dir)
+    print('The DNI data are saved in "%s"! Have a nice day!' % save_dir)
 
 
 def checkpoint_loader(args):
