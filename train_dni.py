@@ -315,4 +315,5 @@ if __name__ == "__main__":
     if args.evaluate:
         prednet_dni.cuda()
         prednet_dni.eval()
+        args.shuffle = False
         evaluate(prednet_dni, args)

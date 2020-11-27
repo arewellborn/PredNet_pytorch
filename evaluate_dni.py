@@ -136,7 +136,7 @@ def evaluate(model, args):
     test_sources = os.path.join(DATA_DIR, "sources_validation.h5")
 
     output_mode = "prediction"
-    sequence_start_mode = "unique"
+    sequence_start_mode = "all"
     N_seq = None
     # Set up dataloader
     dataLoader = ZcrDataLoader(

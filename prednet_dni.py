@@ -54,7 +54,7 @@ class PredNetDNI(nn.Module):
         hidden_states = initial_states  # 赋值为hidden_states是为了在下面的循环中可以无痛使用
         output, hidden_states = self.prednet(A0_withTimeStep, hidden_states)
 
-        # Get only R_l layers from hidden_states
+        # Get only R_l layers from hidden_states (first batch of states)
         r_layers = hidden_states[:self.num_layers]
         
         # Concat out gate layers across channel/feature axis after pooling
