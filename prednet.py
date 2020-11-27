@@ -562,9 +562,9 @@ class PredNet(nn.Module):
             # print(len(output_list))             # 10, 即timestep数
             # print('output: ', output_list)      # 每个时间步的`error`是(batch_size, num_layer)的矩阵, 类型是Variable. [torch.cuda.FloatTensor of size 8x4 (GPU 0)] 根据这个来进行按照layer和timestep的加权, 即可实现loss的计算! (按照layer进行两种加权, 即可得到所谓的`L_0`和`L_all`的两类loss)
             # print('Got the `error` list with the length of len(timeSteps) and shape of each element in this list is: (batch_size, num_layer).')
-            return output_list
+            return output_list, hidden_states
         elif self.output_mode == "prediction":
-            return output_list  # 此时的output_list是timestep个预测帧图像
+            return output_list, hidden_states  # 此时的output_list是timestep个预测帧图像
         elif self.output_mode == "all":
             pass
         else:
