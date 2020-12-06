@@ -172,7 +172,7 @@ def evaluate(model, args):
             args.n_channels,
         )
     initial_states = prednet.get_initial_states(input_shape)
-    predictions = prednet(X_test, initial_states)
+    predictions, hidden_states = prednet(X_test, initial_states)
     # print(predictions)
     # print(predictions[0].size())    # torch.Size([8, 3, 128, 160])
 

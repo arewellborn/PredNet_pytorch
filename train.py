@@ -229,7 +229,7 @@ def train(model, args):
         for step, (frameGroup, target) in enumerate(dataLoader):
             #             print(frameGroup.size())   # [torch.FloatTensor of size 16x12x80x80]
             batch_frames = Variable(frameGroup.cuda())
-            output = prednet(batch_frames, states)
+            output, hidden_states = prednet(batch_frames, states)
 
             # '''进行按照timestep和layer对error进行加权.'''
             ## 1. 按layer加权(巧妙利用广播. NOTE: 这里的error列表里的每个元素是Variable类型的矩阵, 需要转成numpy矩阵类型才可以用切片.)
