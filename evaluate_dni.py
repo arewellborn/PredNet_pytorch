@@ -151,7 +151,9 @@ def evaluate(model, args):
     for step, (frameGroup, target) in enumerate(dataLoader):
         batch_frames = Variable(frameGroup.cuda())
         output = prednet_dni(batch_frames, states)
-        prediction_target.append([output.item(), target[-1].item()])
+        target = target[:, -1]
+        additions = list(zip(output.cpu().detach().numpy(), target.cpu().detach().numpy()))
+        prediction_target += additions
 
     # Save predictions and targets in a csv
     save_dir = os.path.join(RESULTS_SAVE_DIR, "predictions")

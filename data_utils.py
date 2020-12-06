@@ -137,9 +137,7 @@ class SequenceGenerator(data.Dataset):
         image_group = self.preprocess(
             self.X[idx : (idx + self.step * self.num_timeSteps) : self.step]
         )
-        dni_data = self.preprocess(
-            self.P[idx : (idx + self.step * self.num_timeSteps) : self.step]
-        )
+        dni_data = self.P[idx : (idx + self.step * self.num_timeSteps) : self.step]
 
         return image_group, dni_data
 
@@ -161,9 +159,7 @@ class SequenceGenerator(data.Dataset):
             X_all[i] = self.preprocess(
                 self.X[idx : (idx + self.step * self.num_timeSteps) : self.step]
             )
-            all_dni[i] = self.preprocess(
-                self.P[idx : (idx + self.step * self.num_timeSteps) : self.step]
-            )
+            all_dni[i] = self.P[idx : (idx + self.step * self.num_timeSteps) : self.step]
         return X_all, all_dni
 
 
