@@ -153,7 +153,7 @@ class SequenceGenerator(data.Dataset):
             (self.N_sequences, self.num_timeSteps) + self.img_shape, np.float32
         )
         all_dni = np.zeros(
-            (self.N_sequences, self.num_timeSteps) + self.img_shape, np.float32
+            (self.N_sequences, self.num_timeSteps), np.float32
         )
         for i, idx in enumerate(self.possible_starts):
             X_all[i] = self.preprocess(
