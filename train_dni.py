@@ -7,6 +7,7 @@ import time
 from datetime import datetime
 import numpy as np
 import json
+import tarfile
 
 import torch
 from torch.autograd import Variable
@@ -299,6 +300,16 @@ if __name__ == "__main__":
             output_mode="prediction",
             data_format=data_format,
         )
+        if '.pth' in load_model:
+            load_model = load_model
+        elif '.tar.gz' in load_model:
+            tar = tarfile.open(load_model, 'r:gz')
+            outpath = load_model.rsplit('/', 1)[0]
+            tar.extractall(path=outpath)
+            tar.close()
+            load_model = os.path.join(outpath, 'model.pth')
+        else:
+            raise RuntimeError
         prednet.load_state_dict(torch.load(load_model))
         prednet.train()
         print("Existing model successsfully lodaded.")
