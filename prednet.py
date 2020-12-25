@@ -481,10 +481,6 @@ class PredNet(nn.Module):
                     output = A
                 elif self.output_layer_type == "Ahat":
                     output = Ahat
-                elif self.output_layer_type == "R":
-                    output = R_list[lay]
-                elif self.output_layer_type == "E":
-                    output = E_list[lay]
 
             if self.isNotTopestLayer(lay):
                 A = self.conv_layers["A"][2 * lay](
