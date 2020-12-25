@@ -345,6 +345,15 @@ if __name__ == "__main__":
 
     # Load previous model if path is given
     if load_model:
+        prednet = PredNet(
+            stack_sizes,
+            R_stack_sizes,
+            A_filter_sizes,
+            Ahat_filter_sizes,
+            R_filter_sizes,
+            output_mode="prediction",
+            data_format=data_format,
+        )
         if ".pth" in load_model:
             load_model = load_model
         elif ".tar.gz" in load_model:
@@ -355,19 +364,11 @@ if __name__ == "__main__":
             load_model = os.path.join(outpath, "model.pth")
         else:
             raise RuntimeError
-        prednet = torch.load_model(load_model)
-        prednet.output_mode = "error"
-        prednet.data_format = data_format
+        prednet.load_state_dict(torch.load(load_model))
+        prednet.train()
+        print("Existing model successsfully lodaded.")
     else:
-        prednet = PredNet(
-            stack_sizes,
-            R_stack_sizes,
-            A_filter_sizes,
-            Ahat_filter_sizes,
-            R_filter_sizes,
-            output_mode="error",
-            data_format=data_format,
-        )
+        raise RuntimeError("Pre-trained prednet model required.")
     print(prednet)
     prednet.cuda()
 
