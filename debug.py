@@ -11,15 +11,15 @@ import h5py
 # test_sources = os.path.join(dataDir, 'sources_test.hkl')
 
 # @200.121
-dataDir = '/media/sdb1/chenrui/kitti_data/h5/'
-trainSet_path = os.path.join(dataDir, 'X_train.h5')
-train_sources = os.path.join(dataDir, 'sources_train.h5')
-testSet_path  = os.path.join(dataDir, 'X_test.h5')
-test_sources  = os.path.join(dataDir, 'sources_test.h5')
+dataDir = "/media/sdb1/chenrui/kitti_data/h5/"
+trainSet_path = os.path.join(dataDir, "X_train.h5")
+train_sources = os.path.join(dataDir, "sources_train.h5")
+testSet_path = os.path.join(dataDir, "X_test.h5")
+test_sources = os.path.join(dataDir, "sources_test.h5")
 
 
-h5f = h5py.File(testSet_path,'r')
-testSet = h5f['X_test'][:]
+h5f = h5py.File(testSet_path, "r")
+testSet = h5f["X_test"][:]
 
 # print(testSet)
 # print(type(testSet))    # <class 'numpy.ndarray'>

@@ -42,7 +42,10 @@ def arg_parse():
         "--mode", default="train", type=str, help="train or evaluate (default: train)"
     )
     parser.add_argument(
-        "--evaluate", default=True, type=bool, help="evaluate after training. (default: true)"
+        "--evaluate",
+        default=True,
+        type=bool,
+        help="evaluate after training. (default: true)",
     )
     parser.add_argument(
         "--epochs",
@@ -342,14 +345,14 @@ if __name__ == "__main__":
 
     # Load previous model if path is given
     if load_model:
-        if '.pth' in load_model:
+        if ".pth" in load_model:
             load_model = load_model
-        elif '.tar.gz' in load_model:
-            tar = tarfile.open(load_model, 'r:gz')
-            outpath = load_model.rsplit('/', 1)[0]
+        elif ".tar.gz" in load_model:
+            tar = tarfile.open(load_model, "r:gz")
+            outpath = load_model.rsplit("/", 1)[0]
             tar.extractall(path=outpath)
             tar.close()
-            load_model = os.path.join(outpath, 'model.pth')
+            load_model = os.path.join(outpath, "model.pth")
         else:
             raise RuntimeError
         prednet = torch.load_model(load_model)
@@ -373,6 +376,6 @@ if __name__ == "__main__":
     save_path = os.path.join(args.model_dir, "model.pth")
     torch.save(prednet.cpu().state_dict(), save_path)
     if args.evaluate:
-        prednet.output_mode = 'prediction'
+        prednet.output_mode = "prediction"
         prednet.cuda()
         evaluate(prednet, args)

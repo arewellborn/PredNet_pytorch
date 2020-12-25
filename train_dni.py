@@ -199,7 +199,13 @@ def train(model, args):
     dataLoader = ZcrDataLoader(
         train_file, train_sources, output_mode, sequence_start_mode, N_seq, args
     ).dataLoader()
-    input_shape = (args.batch_size, args.num_timeSteps, n_channels, img_height, img_width)
+    input_shape = (
+        args.batch_size,
+        args.num_timeSteps,
+        n_channels,
+        img_height,
+        img_width,
+    )
 
     optimizer = torch.optim.Adam(prednet_dni.parameters(), lr=args.lr)
     # This is not the same LR scheduler as the original paper but supports loss observations
@@ -219,7 +225,7 @@ def train(model, args):
             #             print(frameGroup.size())   # [torch.FloatTensor of size 16x12x80x80]
             batch_frames = frameGroup.cuda()
             _input = prednet_dni(batch_frames, states)
-            
+
             # Use last DNI measurements for each sequence in the batch
             target = target[:, -1].cuda()
 
@@ -300,14 +306,14 @@ if __name__ == "__main__":
             output_mode="prediction",
             data_format=data_format,
         )
-        if '.pth' in load_model:
+        if ".pth" in load_model:
             load_model = load_model
-        elif '.tar.gz' in load_model:
-            tar = tarfile.open(load_model, 'r:gz')
-            outpath = load_model.rsplit('/', 1)[0]
+        elif ".tar.gz" in load_model:
+            tar = tarfile.open(load_model, "r:gz")
+            outpath = load_model.rsplit("/", 1)[0]
             tar.extractall(path=outpath)
             tar.close()
-            load_model = os.path.join(outpath, 'model.pth')
+            load_model = os.path.join(outpath, "model.pth")
         else:
             raise RuntimeError
         prednet.load_state_dict(torch.load(load_model))

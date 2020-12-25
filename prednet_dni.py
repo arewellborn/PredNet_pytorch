@@ -45,13 +45,13 @@ class PredNetDNI(nn.Module):
         self.linear_layer = nn.Linear(in_features=in_features, out_features=1)
 
     def forward(self, A0_withTimeStep, initial_states):
-        
-        # hidden_states will return an array of shape (1, batch size) representing the last time step for each sequence 
+
+        # hidden_states will return an array of shape (1, batch size) representing the last time step for each sequence
         output, hidden_states = self.prednet(A0_withTimeStep, initial_states)
 
         # Get only R_l layers from hidden_states (first batch of states)
-        r_layers = hidden_states[:self.num_layers]
-        
+        r_layers = hidden_states[: self.num_layers]
+
         # Concat out gate layers across channel/feature axis after pooling
         output = []
         for i, layer in enumerate(reversed(r_layers)):
@@ -60,7 +60,7 @@ class PredNetDNI(nn.Module):
             else:
                 pool = self.pool_list[i - 1]
                 output.append(pool(layer))
-        
+
         output = torch.cat(output, dim=-3).cuda()
         output = Variable(output, requires_grad=True)
 

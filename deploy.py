@@ -25,7 +25,7 @@ def model_fn(model_dir):
         Ahat_filter_sizes,
         R_filter_sizes,
         output_mode="prediction",
-        data_format='channels_first',
+        data_format="channels_first",
     )
     with open(os.path.join(model_dir, "model.pth"), "rb") as f:
         model.load_state_dict(torch.load(f))

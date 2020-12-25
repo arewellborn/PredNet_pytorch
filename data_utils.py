@@ -152,14 +152,14 @@ class SequenceGenerator(data.Dataset):
         X_all = np.zeros(
             (self.N_sequences, self.num_timeSteps) + self.img_shape, np.float32
         )
-        all_dni = np.zeros(
-            (self.N_sequences, self.num_timeSteps), np.float32
-        )
+        all_dni = np.zeros((self.N_sequences, self.num_timeSteps), np.float32)
         for i, idx in enumerate(self.possible_starts):
             X_all[i] = self.preprocess(
                 self.X[idx : (idx + self.step * self.num_timeSteps) : self.step]
             )
-            all_dni[i] = self.P[idx : (idx + self.step * self.num_timeSteps) : self.step]
+            all_dni[i] = self.P[
+                idx : (idx + self.step * self.num_timeSteps) : self.step
+            ]
         return X_all, all_dni
 
 

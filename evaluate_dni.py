@@ -143,7 +143,13 @@ def evaluate(model, args):
         test_file, test_sources, output_mode, sequence_start_mode, N_seq, args
     ).dataLoader()
     # Set up initial states
-    input_shape = (args.batch_size, args.num_timeSteps, args.n_channels, args.img_height, args.img_width)
+    input_shape = (
+        args.batch_size,
+        args.num_timeSteps,
+        args.n_channels,
+        args.img_height,
+        args.img_width,
+    )
     initial_states_dni = prednet_dni.get_initial_states(input_shape)
     states = initial_states_dni
     # Generate predictions
@@ -152,7 +158,9 @@ def evaluate(model, args):
         batch_frames = Variable(frameGroup.cuda())
         output = prednet_dni(batch_frames, states)
         target = target[:, -1]
-        additions = list(zip(output.cpu().detach().numpy(), target.cpu().detach().numpy()))
+        additions = list(
+            zip(output.cpu().detach().numpy(), target.cpu().detach().numpy())
+        )
         prediction_target += additions
 
     # Save predictions and targets in a csv
