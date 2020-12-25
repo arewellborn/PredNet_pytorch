@@ -217,8 +217,14 @@ def train(model, args):
         )
 
     optimizer = torch.optim.Adam(prednet.parameters(), lr=args.lr)
-    # This is not the same LR scheduler as the original paper but supports loss observations
-    lr_maker = lr_scheduler.StepLR(optimizer=optimizer, step_size=3000, gamma=0.1)
+    # This is not the same LR scheduler as the original paper
+    lr_maker = lr_scheduler.OneCycleLR(
+        max_lr=args.lr,
+        optimizer=optimizer,
+        epochs=args.epochs,
+        steps_per_epoch=len(dataLoader),
+        cycle_momentum=False,
+    )
     printCircle = args.printCircle
     for e in range(args.epochs):
         tr_loss = 0.0
