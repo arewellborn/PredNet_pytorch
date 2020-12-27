@@ -60,6 +60,8 @@ class SequenceGenerator(data.Dataset):
         N_seq=None,
         data_format="channels_first",
         step=1,
+        include_datetime=False,
+        dni_offset=0
     ):
         super(SequenceGenerator, self).__init__()
         pattern = re.compile(r".*?h5/(.+?)\.h5")
@@ -68,6 +70,8 @@ class SequenceGenerator(data.Dataset):
         h5f = h5py.File(data_file, "r")
         self.X = h5f[varName][:]  # X will be like (n_images, cols, rows, channels)
         self.P = h5f["dni"][:]
+        if include_datetime:
+            self.D = h5f['datetime'][:]
 
         resList = re.findall(pattern, source_file)
         varName = resList[0]
@@ -88,6 +92,8 @@ class SequenceGenerator(data.Dataset):
         self.img_shape = self.X[0].shape
         self.num_samples = self.X.shape[0]
         self.step = step
+        self.include_datetime = include_datetime
+        self.dni_offset = dni_offset
 
         if (
             self.sequence_start_mode == "all"
@@ -105,10 +111,10 @@ class SequenceGenerator(data.Dataset):
         ):  # create sequences where each unique frame is in at most one sequence
             curr_location = 0
             possible_starts = []
-            while curr_location < self.num_samples - self.step * self.num_timeSteps + 1:
+            while curr_location < self.num_samples - self.step * self.num_timeSteps + 1 - self.dni_offset:
                 if (
                     self.sources[curr_location]
-                    == self.sources[curr_location + self.step * self.num_timeSteps - 1]
+                    == self.sources[curr_location + self.step * self.num_timeSteps - 1 + self.dni_offset]
                 ):
                     possible_starts.append(curr_location)
                     curr_location += self.step * self.num_timeSteps
@@ -137,9 +143,14 @@ class SequenceGenerator(data.Dataset):
         image_group = self.preprocess(
             self.X[idx : (idx + self.step * self.num_timeSteps) : self.step]
         )
-        dni_data = self.P[idx : (idx + self.step * self.num_timeSteps) : self.step]
+        dni_data = self.P[idx + self.dni_offset : (idx + self.step * self.num_timeSteps + self.dni_offset) : self.step]
+        if self.include_datetime:
+            datetime_data = self.D[idx + self.dni_offset : (idx + self.step * self.num_timeSteps + self.dni_offset) : self.step]
+            ret = (image_group, dni_data, datetime_data)
+        else:
+            ret = (image_group, dni_data)
 
-        return image_group, dni_data
+        return ret
 
     def preprocess(self, X):
         return X.astype(np.float32) / 255.0
@@ -153,14 +164,24 @@ class SequenceGenerator(data.Dataset):
             (self.N_sequences, self.num_timeSteps) + self.img_shape, np.float32
         )
         all_dni = np.zeros((self.N_sequences, self.num_timeSteps), np.float32)
+        if self.include_datetime:
+            all_datetimes = np.zeros((self.N_sequences, self.num_timeSteps), np.float32)
         for i, idx in enumerate(self.possible_starts):
             X_all[i] = self.preprocess(
                 self.X[idx : (idx + self.step * self.num_timeSteps) : self.step]
             )
             all_dni[i] = self.P[
-                idx : (idx + self.step * self.num_timeSteps) : self.step
+                idx + self.dni_offset : (idx + self.step * self.num_timeSteps + self.dni_offset) : self.step
             ]
-        return X_all, all_dni
+            if self.include_datetime:
+                all_datetimes[i] = self.D[
+                    idx + self.dni_offset : (idx + self.step * self.num_timeSteps + self.dni_offset) : self.step
+                ]
+        if self.include_datetime:
+            ret = (X_all, all_dni, all_datetimes)
+        else:
+            ret = (X_all, all_dni)
+        return ret
 
 
 class ZcrDataLoader(object):
@@ -189,6 +210,8 @@ class ZcrDataLoader(object):
             self.N_seq,
             self.args.data_format,
             self.args.step,
+            self.args.include_datetime,
+            self.args.dni_offset
         )
         # NOTE: 将drop_last设置为True, 可以删除最后一个不完整的batch(e.g.,当数据集大小不能被batch_size整除时, 最后一个batch的样本数是不够一个batch_size的, 这可能会导致某些要用到上一次结果的代码因为旧size和新size不匹配而报错(PredNet就有这个问题, 故这里将drop_last设置为True))
         dataloader = data.DataLoader(

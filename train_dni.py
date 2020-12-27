@@ -162,6 +162,12 @@ def arg_parse():
     parser.add_argument(
         "--seed", default=1234, type=int, help="Random seed for training.",
     )
+    parser.add_argument(
+        "--include-datetime", default=True, type=bool, help="Whether to return datetimes from the dataloader.",
+    )
+    parser.add_argument(
+        "--dni-offset", default=0, type=int, help="Offset DNI output by one step size (default: 0).",
+    )
 
     # Container environment
     parser.add_argument(
@@ -233,7 +239,7 @@ def train(model, args):
             input_shape
         )  # 原网络貌似不是stateful的, 故这里再每个epoch开始时重新初始化(如果是stateful的, 则只在全部的epoch开始时初始化一次)
         states = initial_states_dni
-        for step, (frameGroup, target) in enumerate(dataLoader):
+        for step, (frameGroup, target, datetimes) in enumerate(dataLoader):
             #             print(frameGroup.size())   # [torch.FloatTensor of size 16x12x80x80]
             batch_frames = frameGroup.cuda()
             _input = prednet_dni(batch_frames, states)

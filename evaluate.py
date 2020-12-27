@@ -67,6 +67,12 @@ def arg_parse():
     )
     parser.add_argument("--shuffle", default=True, type=bool, help="shuffle or not")
     parser.add_argument(
+        "--include-datetime", default=False, type=bool, help="Whether to return datetimes from the dataloader.",
+    )
+    parser.add_argument(
+        "--dni-offset", default=0, type=int, help="Offset DNI output by one step size (default: 0).",
+    )
+    parser.add_argument(
         "--data_format",
         default="channels_last",
         type=str,

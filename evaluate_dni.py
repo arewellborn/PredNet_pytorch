@@ -41,6 +41,12 @@ def arg_parse():
         "--seed", default=1234, type=int, help="Random seed for training.",
     )
     parser.add_argument(
+        "--include-datetime", default=True, type=bool, help="Whether to return datetimes from the dataloader.",
+    )
+    parser.add_argument(
+        "--dni-offset", default=0, type=int, help="Offset DNI output by one step size (default: 0).",
+    )
+    parser.add_argument(
         "--checkpoint_file",
         default="",
         type=str,
@@ -154,12 +160,13 @@ def evaluate(model, args):
     states = initial_states_dni
     # Generate predictions
     prediction_target = []
-    for step, (frameGroup, target) in enumerate(dataLoader):
+    for step, (frameGroup, target, datetimes) in enumerate(dataLoader):
         batch_frames = Variable(frameGroup.cuda())
         output = prednet_dni(batch_frames, states)
         target = target[:, -1]
+        datetimes = datetimes[:, -1]
         additions = list(
-            zip(output.cpu().detach().numpy(), target.cpu().detach().numpy())
+            zip(datetimes, output.cpu().detach().numpy(), target.cpu().detach().numpy())
         )
         prediction_target += additions
 

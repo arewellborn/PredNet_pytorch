@@ -139,6 +139,12 @@ def arg_parse():
         type=int,
         help="The step size for image sequences (default: 1)",
     )
+    parser.add_argument(
+        "--include-datetime", default=False, type=bool, help="Whether to return datetimes from the dataloader.",
+    )
+    parser.add_argument(
+        "--dni-offset", default=0, type=int, help="Offset DNI output by one step size (default: 0).",
+    )
     parser.add_argument("--shuffle", default=True, type=bool, help="shuffle or not")
     parser.add_argument(
         "--training-data-dir",
