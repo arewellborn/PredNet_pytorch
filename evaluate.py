@@ -212,6 +212,7 @@ def evaluate(model, args):
     plot_save_dir = os.path.join(RESULTS_SAVE_DIR, "prediction_plots/")
     if not os.path.exists(plot_save_dir):
         os.mkdir(plot_save_dir)
+    np.random.seed(args.seed)
     plot_idx = np.random.permutation(total_num)[:n_plot]
     for i in plot_idx:
         for t in range(timesteps):
