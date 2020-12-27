@@ -148,7 +148,13 @@ def arg_parse():
         help="Training data directory for the training and validation datasets.",
     )
     parser.add_argument(
-        "--load-model",
+        "--load-prednet-model",
+        default="",
+        type=str,
+        help="Path to pre-existing model that can be loaded before training.",
+    )
+    parser.add_argument(
+        "--load-dni-model",
         default="",
         type=str,
         help="Path to pre-existing model that can be loaded before training.",
@@ -208,8 +214,14 @@ def train(model, args):
     )
 
     optimizer = torch.optim.Adam(prednet_dni.parameters(), lr=args.lr)
-    # This is not the same LR scheduler as the original paper but supports loss observations
-    lr_maker = lr_scheduler.StepLR(optimizer=optimizer, step_size=3000, gamma=0.1)
+    # This is not the same LR scheduler as the original paper
+    lr_maker = lr_scheduler.OneCycleLR(
+        max_lr=args.lr,
+        optimizer=optimizer,
+        epochs=args.epochs,
+        steps_per_epoch=len(dataLoader),
+        cycle_momentum=False,
+    )
     printCircle = args.printCircle
     for e in range(args.epochs):
         tr_loss = 0.0
@@ -241,7 +253,7 @@ def train(model, args):
             sum_trainLoss_in_epoch += loss.item()
             if step % printCircle == (printCircle - 1):
                 print(
-                    "epoch: [%3d/%3d] | [%4d/%4d]  loss: %.4f  lr: %.5lf"
+                    "epoch: [%3d/%3d] | [%4d/%4d]  loss: %.4f  lr: %.7lf"
                     % (
                         (e + 1),
                         args.epochs,
@@ -286,7 +298,8 @@ if __name__ == "__main__":
     img_height = args.img_height
     img_width = args.img_width
     data_dir = args.data_dir
-    load_model = args.load_model
+    load_prednet_model = args.load_prednet_model
+    load_dni_model = args.load_dni_model
     data_format = args.data_format
 
     stack_sizes = (n_channels, 48, 96, 192)
@@ -295,17 +308,7 @@ if __name__ == "__main__":
     Ahat_filter_sizes = (3, 3, 3, 3)
     R_filter_sizes = (3, 3, 3, 3)
 
-    # Load previous model if path is given
-    if load_model:
-        prednet = PredNet(
-            stack_sizes,
-            R_stack_sizes,
-            A_filter_sizes,
-            Ahat_filter_sizes,
-            R_filter_sizes,
-            output_mode="prediction",
-            data_format=data_format,
-        )
+    def load_model_fn(load_model):
         if ".pth" in load_model:
             load_model = load_model
         elif ".tar.gz" in load_model:
@@ -315,13 +318,36 @@ if __name__ == "__main__":
             tar.close()
             load_model = os.path.join(outpath, "model.pth")
         else:
-            raise RuntimeError
-        prednet.load_state_dict(torch.load(load_model))
-        prednet.train()
-        print("Existing model successsfully lodaded.")
-        prednet_dni = PredNetDNI(prednet)
+            raise RuntimeError("File extension not recognized.")
+        return load_model
+    
+    # Load previous model if path is given
+    if load_prednet_model or load_dni_model:
+        prednet = PredNet(
+            stack_sizes,
+            R_stack_sizes,
+            A_filter_sizes,
+            Ahat_filter_sizes,
+            R_filter_sizes,
+            output_mode="prediction",
+            data_format=data_format,
+        )
+        if load_prednet_model:
+            load_model = load_model_fn(load_prednet_model)
+            prednet.load_state_dict(torch.load(load_model))
+            prednet.train()
+            print("Existing PredNet model successsfully loaded.")
+            prednet_dni = PredNetDNI(prednet)
+        elif load_dni_model:
+            load_model = load_model_fn(load_dni_model)
+            prednet.train()
+            prednet_dni = PredNetDNI(prednet)
+            prednet_dni.load_state_dict(torch.load(load_model))
+            print("Existing PredNetDNI model successsfully lodaded.")
+        elif load_prednet_model and load_dni_model:
+            raise RuntimeError("Cannot load both PredNet model and PredNetDNI model.")
     else:
-        raise RuntimeError("Pre-trained prednet model required.")
+        raise RuntimeError("Pre-trained PredNet or PredNetDNI model required.")
     print(prednet_dni)
     prednet_dni.cuda()
 
