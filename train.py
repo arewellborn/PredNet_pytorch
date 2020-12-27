@@ -357,7 +357,7 @@ if __name__ == "__main__":
             A_filter_sizes,
             Ahat_filter_sizes,
             R_filter_sizes,
-            output_mode="prediction",
+            output_mode="error",
             data_format=data_format,
         )
         if ".pth" in load_model:
