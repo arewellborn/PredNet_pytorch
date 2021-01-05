@@ -56,29 +56,13 @@ def arg_parse():
         help="number of total epochs to run",
     )
     parser.add_argument(
-        "--non-local",
-        default=True,
-        type=bool,
-        help="Indicates that the model files should be downloaded from a remote repo.",
-    )
-    parser.add_argument(
         "--num_plot", default=40, type=int, metavar="N", help="how many images to plot"
     )
     parser.add_argument(
         "--batch_size", default=32, type=int, metavar="N", help="The size of batch"
     )
     parser.add_argument(
-        "--optimizer", default="SGD", type=str, help="which optimizer to use"
-    )
-    parser.add_argument(
         "--lr", default=0.001, type=float, metavar="LR", help="initial learning rate"
-    )
-    parser.add_argument("--momentum", default=0.9, type=float, help="momentum for SGD")
-    parser.add_argument(
-        "--beta1", default=0.9, type=float, help="beta1 in Adam optimizer"
-    )
-    parser.add_argument(
-        "--beta2", default=0.99, type=float, help="beta2 in Adam optimizer"
     )
     parser.add_argument(
         "--workers",
@@ -205,7 +189,7 @@ def train(model, args):
     train_file = os.path.join(training_data_dir, "train.h5")
     train_sources = os.path.join(training_data_dir, "sources_train.h5")
 
-    output_mode = "error"
+    output_mode = "prediction"
     sequence_start_mode = "all"
     N_seq = None
     dataLoader = ZcrDataLoader(
@@ -341,14 +325,14 @@ if __name__ == "__main__":
         if load_prednet_model:
             load_model = load_model_fn(load_prednet_model)
             prednet.load_state_dict(torch.load(load_model))
-            prednet.train()
             print("Existing PredNet model successsfully loaded.")
             prednet_dni = PredNetDNI(prednet)
+            prednet_dni.train()
         elif load_dni_model:
             load_model = load_model_fn(load_dni_model)
-            prednet.train()
             prednet_dni = PredNetDNI(prednet)
             prednet_dni.load_state_dict(torch.load(load_model))
+            prednet_dni.train()
             print("Existing PredNetDNI model successsfully lodaded.")
         elif load_prednet_model and load_dni_model:
             raise RuntimeError("Cannot load both PredNet model and PredNetDNI model.")
@@ -359,10 +343,10 @@ if __name__ == "__main__":
 
     assert args.mode == "train"
     train(prednet_dni, args)
+    prednet_dni.eval()
     save_path = os.path.join(args.model_dir, "model.pth")
     torch.save(prednet_dni.cpu().state_dict(), save_path)
     if args.evaluate:
         prednet_dni.cuda()
-        prednet_dni.eval()
         args.shuffle = False
         evaluate(prednet_dni, args)
