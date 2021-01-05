@@ -98,26 +98,36 @@ class SequenceGenerator(data.Dataset):
         if (
             self.sequence_start_mode == "all"
         ):  # allow for any possible sequence, starting from any frame (如果视频中任意一帧都可以作为起点,只需要确定加上序列长度后的小片段终点是否还属于同一个视频即可)
-            self.possible_starts = np.array(
-                [
-                    i
-                    for i in range(self.num_samples - self.step * self.num_timeSteps)
-                    if self.sources[i]
-                    == self.sources[i + self.step * self.num_timeSteps - 1]
-                ]
-            )
+            if self.output_mode == 'error':
+                self.possible_starts = np.array(
+                    [
+                        i
+                        for i in range(self.num_samples - (self.step * self.num_timeSteps - 1))
+                        if self.sources[i]
+                        == self.sources[i + (self.step * self.num_timeSteps - 1)]
+                    ]
+                )
+            else:
+                self.possible_starts = np.array(
+                    [
+                        i
+                        for i in range(self.num_samples - (self.step * self.num_timeSteps - 1 + self.dni_offset))
+                        if self.sources[i]
+                        == self.sources[i + (self.step * self.num_timeSteps - 1 + self.dni_offset)]
+                    ]
+                )
         elif (
             self.sequence_start_mode == "unique"
         ):  # create sequences where each unique frame is in at most one sequence
             curr_location = 0
             possible_starts = []
-            while curr_location < self.num_samples - self.step * self.num_timeSteps + 1 - self.dni_offset:
+            while curr_location < self.num_samples - (self.step * self.num_timeSteps - 1 + self.dni_offset):
                 if (
                     self.sources[curr_location]
-                    == self.sources[curr_location + self.step * self.num_timeSteps - 1 + self.dni_offset]
+                    == self.sources[curr_location + (self.step * self.num_timeSteps - 1 + self.dni_offset)]
                 ):
                     possible_starts.append(curr_location)
-                    curr_location += self.step * self.num_timeSteps
+                    curr_location += self.step * self.num_timeSteps + self.dni_offset
                 else:
                     curr_location += 1
             self.possible_starts = possible_starts
@@ -145,12 +155,10 @@ class SequenceGenerator(data.Dataset):
         )
         dni_data = self.P[idx + self.dni_offset : (idx + self.step * self.num_timeSteps + self.dni_offset) : self.step]
         if self.include_datetime:
-            datetime_data = self.D[idx + self.dni_offset : (idx + self.step * self.num_timeSteps + self.dni_offset) : self.step]
-            ret = (image_group, dni_data, datetime_data)
+            datetime_data = self.D[idx + self.dni_offset : (idx + self.step * self.num_timeSteps + self.dni_offset) : self.step].astype(np.int64)
+            return image_group, dni_data, datetime_data
         else:
-            ret = (image_group, dni_data)
-
-        return ret
+            return image_group, dni_data
 
     def preprocess(self, X):
         return X.astype(np.float32) / 255.0
@@ -165,7 +173,7 @@ class SequenceGenerator(data.Dataset):
         )
         all_dni = np.zeros((self.N_sequences, self.num_timeSteps), np.float32)
         if self.include_datetime:
-            all_datetimes = np.zeros((self.N_sequences, self.num_timeSteps), np.float32)
+            all_datetimes = np.zeros((self.N_sequences, self.num_timeSteps), np.int64)
         for i, idx in enumerate(self.possible_starts):
             X_all[i] = self.preprocess(
                 self.X[idx : (idx + self.step * self.num_timeSteps) : self.step]
@@ -176,7 +184,7 @@ class SequenceGenerator(data.Dataset):
             if self.include_datetime:
                 all_datetimes[i] = self.D[
                     idx + self.dni_offset : (idx + self.step * self.num_timeSteps + self.dni_offset) : self.step
-                ]
+                ].astype(np.int64)
         if self.include_datetime:
             ret = (X_all, all_dni, all_datetimes)
         else:
