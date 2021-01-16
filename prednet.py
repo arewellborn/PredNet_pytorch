@@ -371,7 +371,7 @@ class PredNet(nn.Module):
         if self.extrap_start_time is not None:
             timestep = states[-1]
             if (
-                timestep >= self.t_extrap
+                timestep >= self.extrap_start_time
             ):  # if past self.extrap_start_time, the previous prediction will be treated as the actual.
                 A = states[-2]
             else:
@@ -538,6 +538,7 @@ class PredNet(nn.Module):
         output_list = (
             []
         )  # output需要保留下来: `error`模式下需要按照layer和timestep进行加权得到最终的loss; `prediction`模式下需要输出每个时间步的预测图像(如timestep为10的话, 输出10个图像)
+        hidden_states_list = []
         for t in range(num_timesteps):
             """
                 原本的LSTM(或普通RNN)是要两重循环的:
@@ -551,8 +552,10 @@ class PredNet(nn.Module):
             output, hidden_states = self.step(A0, hidden_states)
             
             # Return second to last hidden_states to use for DNI predictions
-            if t == (num_timesteps - 1 - 1):
-                _hidden_states = hidden_states
+            last_index = num_timesteps - 1
+            if (t <= last_index) and (t > last_index - 5):
+#             if t == last_dni_state_index:
+                hidden_states_list.append(hidden_states)
                 
             output_list.append(output)
             # hidden_states 不需要保留,只需让其在时间步内进行`长江后浪推前浪`式的迭代即可.
@@ -562,9 +565,9 @@ class PredNet(nn.Module):
             # print(len(output_list))             # 10, 即timestep数
             # print('output: ', output_list)      # 每个时间步的`error`是(batch_size, num_layer)的矩阵, 类型是Variable. [torch.cuda.FloatTensor of size 8x4 (GPU 0)] 根据这个来进行按照layer和timestep的加权, 即可实现loss的计算! (按照layer进行两种加权, 即可得到所谓的`L_0`和`L_all`的两类loss)
             # print('Got the `error` list with the length of len(timeSteps) and shape of each element in this list is: (batch_size, num_layer).')
-            return output_list, _hidden_states
+            return output_list, hidden_states_list
         elif self.output_mode == "prediction":
-            return output_list, _hidden_states  # 此时的output_list是timestep个预测帧图像
+            return output_list, hidden_states_list  # 此时的output_list是timestep个预测帧图像
         elif self.output_mode == "all":
             pass
         else:

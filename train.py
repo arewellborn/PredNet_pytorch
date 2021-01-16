@@ -72,6 +72,9 @@ def arg_parse():
     parser.add_argument(
         "--lr", default=0.001, type=float, metavar="LR", help="initial learning rate"
     )
+    parser.add_argument(
+        "--extrap_start_time", default=None, type=int, help="Time step to begin extrapolating from."
+    )
     parser.add_argument("--momentum", default=0.9, type=float, help="momentum for SGD")
     parser.add_argument(
         "--beta1", default=0.9, type=float, help="beta1 in Adam optimizer"
@@ -187,7 +190,7 @@ def print_args(args):
     print("-" * 50)
 
 
-def train(model, args):
+def train(model, args, optimizer_state_dict=None):
     """Train PredNet on KITTI sequences"""
 
     # print('layer_loss_weightsMode: ', args.layer_loss_weightsMode)
@@ -195,6 +198,7 @@ def train(model, args):
     # frame data files
     training_data_dir = args.data_dir
     output_data_dir = args.output_data_dir
+    model_dir = args.model_dir
     train_file = os.path.join(training_data_dir, "train.h5")
     train_sources = os.path.join(training_data_dir, "sources_train.h5")
 
@@ -223,6 +227,8 @@ def train(model, args):
         )
 
     optimizer = torch.optim.Adam(prednet.parameters(), lr=args.lr)
+    if optimizer_state_dict != None:
+        optimizer.load_state_dict(optimizer_state_dict)
     # This is not the same LR scheduler as the original paper
     lr_maker = lr_scheduler.OneCycleLR(
         max_lr=args.lr,
@@ -327,13 +333,13 @@ def train(model, args):
                 "state_dict": prednet.state_dict(),
                 "optimizer": optimizer.state_dict(),
             }
-            saveCheckpoint(zcr_state_dict, output_data_dir)
+            saveCheckpoint(zcr_state_dict, model_dir)
 
 
 def saveCheckpoint(zcr_state_dict, output_data_dir):
     """save the checkpoint for both restarting and evaluating."""
     epoch = zcr_state_dict["epoch"]
-    fileName = f"checkpoint-{epoch}"
+    fileName = f"checkpoint"
     path = os.path.join(output_data_dir, fileName)
     torch.save(zcr_state_dict, path)
 
@@ -348,12 +354,30 @@ if __name__ == "__main__":
     data_dir = args.data_dir
     load_model = args.load_model
     data_format = args.data_format
+    extrap_start_time = args.extrap_start_time
 
     stack_sizes = (n_channels, 48, 96, 192)
     R_stack_sizes = stack_sizes
     A_filter_sizes = (3, 3, 3)
     Ahat_filter_sizes = (3, 3, 3, 3)
     R_filter_sizes = (3, 3, 3, 3)
+
+    def load_model_fn(load_model):
+        if ".pth" in load_model:
+            load_model = load_model
+        elif ".tar.gz" in load_model:
+            path = load_model.replace('checkpoint', 'model')
+            tar = tarfile.open(path, "r:gz")
+            outpath = load_model.rsplit("/", 1)[0]
+            tar.extractall(path=outpath)
+            tar.close()
+            if 'checkpoint' in load_model:
+                load_model = os.path.join(outpath, "checkpoint")
+            else:
+                load_model = os.path.join(outpath, "model.pth")
+        else:
+            raise RuntimeError("File extension not recognized.")
+        return load_model
 
     # Load previous model if path is given
     if load_model:
@@ -365,27 +389,29 @@ if __name__ == "__main__":
             R_filter_sizes,
             output_mode="error",
             data_format=data_format,
+            extrap_start_time=extrap_start_time,
         )
-        if ".pth" in load_model:
-            load_model = load_model
-        elif ".tar.gz" in load_model:
-            tar = tarfile.open(load_model, "r:gz")
-            outpath = load_model.rsplit("/", 1)[0]
-            tar.extractall(path=outpath)
-            tar.close()
-            load_model = os.path.join(outpath, "model.pth")
+        if load_model:
+            load_model = load_model_fn(load_model)
+            if 'checkpoint' in load_model:
+                checkpoint = torch.load(load_model)
+                model_state_dict = checkpoint['state_dict']
+                optimizer_state_dict = checkpoint['optimizer']
+            else:
+                model_state_dict = torch.load(load_model)
+                optimizer_state_dict = None
+            prednet.load_state_dict(model_state_dict)
+            print("Existing PredNet model successsfully loaded.")
+            prednet.train()
         else:
-            raise RuntimeError
-        prednet.load_state_dict(torch.load(load_model))
-        prednet.train()
-        print("Existing model successsfully lodaded.")
-    else:
-        raise RuntimeError("Pre-trained prednet model required.")
+            raise RuntimeError('Please pass a load_model parameter.')
     print(prednet)
+    pytorch_total_params = sum(p.numel() for p in prednet.parameters() if p.requires_grad)
+    print('Total Trainable Parameters:', pytorch_total_params)
     prednet.cuda()
 
     assert args.mode == "train"
-    train(prednet, args)
+    train(prednet, args, optimizer_state_dict=optimizer_state_dict)
     save_path = os.path.join(args.model_dir, "model.pth")
     torch.save(prednet.cpu().state_dict(), save_path)
     if args.evaluate:

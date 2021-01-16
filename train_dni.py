@@ -4,7 +4,7 @@
 import os
 import argparse
 import time
-from datetime import datetime
+from datetime import datetime, timedelta
 import numpy as np
 import json
 import tarfile
@@ -63,6 +63,9 @@ def arg_parse():
     )
     parser.add_argument(
         "--lr", default=0.001, type=float, metavar="LR", help="initial learning rate"
+    )
+    parser.add_argument(
+        "--extrap_start_time", default=None, type=int, help="Time step to begin extrapolating from."
     )
     parser.add_argument(
         "--workers",
@@ -124,7 +127,7 @@ def arg_parse():
         type=int,
         help="The step size for image sequences (default: 1)",
     )
-    parser.add_argument("--shuffle", default=True, type=bool, help="shuffle or not")
+    parser.add_argument("--shuffle", default=False, type=bool, help="shuffle or not")
     parser.add_argument(
         "--training-data-dir",
         default="h5/",
@@ -178,7 +181,7 @@ def print_args(args):
     print("-" * 50)
 
 
-def train(model, args):
+def train(model, args, optimizer_state_dict=None):
     """Train PredNet on KITTI sequences"""
 
     # print('layer_loss_weightsMode: ', args.layer_loss_weightsMode)
@@ -186,6 +189,7 @@ def train(model, args):
     # frame data files
     training_data_dir = args.data_dir
     output_data_dir = args.output_data_dir
+    model_dir = args.model_dir
     train_file = os.path.join(training_data_dir, "train.h5")
     train_sources = os.path.join(training_data_dir, "sources_train.h5")
 
@@ -204,6 +208,8 @@ def train(model, args):
     )
 
     optimizer = torch.optim.Adam(prednet_dni.parameters(), lr=args.lr)
+    if optimizer_state_dict != None:
+        optimizer.load_state_dict(optimizer_state_dict)
     # This is not the same LR scheduler as the original paper
     lr_maker = lr_scheduler.OneCycleLR(
         max_lr=args.lr,
@@ -223,10 +229,23 @@ def train(model, args):
             input_shape
         )  # 原网络貌似不是stateful的, 故这里再每个epoch开始时重新初始化(如果是stateful的, 则只在全部的epoch开始时初始化一次)
         states = initial_states_dni
+        sequences_correct = []
+        _worst_losses = []
+        worst_losses = None
         for step, (frameGroup, target, datetimes) in enumerate(dataLoader):
             #             print(frameGroup.size())   # [torch.FloatTensor of size 16x12x80x80]
+            if worst_losses and step not in worst_losses:
+                continue
             batch_frames = frameGroup.cuda()
+            optimizer.zero_grad()
             _input = prednet_dni(batch_frames, states)
+                        
+            time_seq_correct = [datetime.strptime(str(dt), "%Y%m%d%H%M%S") for dt in datetimes.numpy()[0]]
+            time_seq_correct = all(
+                time_seq_correct[i+1] - time_seq_correct[i] == timedelta(minutes=3)
+                for i in range(len(time_seq_correct) - 1)
+            )
+            sequences_correct.append(time_seq_correct)
 
             # Use last DNI measurements for each sequence in the batch
             target = target[:, -1].cuda()
@@ -234,16 +253,17 @@ def train(model, args):
             loss = torch.nn.MSELoss()
             loss = loss(_input, target)
 
-            optimizer.zero_grad()
             loss.backward()
             optimizer.step()
             lr_maker.step()
 
             tr_loss += loss.item()
+            if tr_loss > 100 ** 2: # if loss > 50 wpm^2 squared error
+                _worst_losses.append(step)
             sum_trainLoss_in_epoch += loss.item()
             if step % printCircle == (printCircle - 1):
                 print(
-                    "epoch: [%3d/%3d] | [%4d/%4d]  loss: %.4f  lr: %.7lf"
+                    "epoch: [%3d/%3d] | [%4d/%4d]  loss: %.4f  lr: %.8lf"
                     % (
                         (e + 1),
                         args.epochs,
@@ -253,8 +273,13 @@ def train(model, args):
                         optimizer.param_groups[0]["lr"],
                     )
                 )
+                if not all(sequences_correct):
+                    print('\n\nSequences not correct for above average loss.\n\n')
                 tr_loss = 0.0
+                sequences_correct = []
 
+        worst_losses = _worst_losses
+        _worst_losses = []
         endTime_epoch = time.time()
         print(
             "Time Consumed within an epoch: %.2f (s)"
@@ -269,13 +294,13 @@ def train(model, args):
                 "state_dict": prednet_dni.state_dict(),
                 "optimizer": optimizer.state_dict(),
             }
-            saveCheckpoint(zcr_state_dict, output_data_dir)
+            saveCheckpoint(zcr_state_dict, model_dir)
 
 
 def saveCheckpoint(zcr_state_dict, output_data_dir):
     """save the checkpoint for both restarting and evaluating."""
     epoch = zcr_state_dict["epoch"]
-    fileName = f"checkpoint-{epoch}"
+    fileName = f"checkpoint"
     path = os.path.join(output_data_dir, fileName)
     torch.save(zcr_state_dict, path)
 
@@ -291,6 +316,7 @@ if __name__ == "__main__":
     load_prednet_model = args.load_prednet_model
     load_dni_model = args.load_dni_model
     data_format = args.data_format
+    extrap_start_time = args.extrap_start_time
 
     stack_sizes = (n_channels, 48, 96, 192)
     R_stack_sizes = stack_sizes
@@ -302,11 +328,15 @@ if __name__ == "__main__":
         if ".pth" in load_model:
             load_model = load_model
         elif ".tar.gz" in load_model:
-            tar = tarfile.open(load_model, "r:gz")
+            path = load_model.replace('checkpoint', 'model')
+            tar = tarfile.open(path, "r:gz")
             outpath = load_model.rsplit("/", 1)[0]
             tar.extractall(path=outpath)
             tar.close()
-            load_model = os.path.join(outpath, "model.pth")
+            if 'checkpoint' in load_model:
+                load_model = os.path.join(outpath, "checkpoint")
+            else:
+                load_model = os.path.join(outpath, "model.pth")
         else:
             raise RuntimeError("File extension not recognized.")
         return load_model
@@ -321,28 +351,46 @@ if __name__ == "__main__":
             R_filter_sizes,
             output_mode="prediction",
             data_format=data_format,
+            extrap_start_time=extrap_start_time,
         )
         if load_prednet_model:
             load_model = load_model_fn(load_prednet_model)
-            prednet.load_state_dict(torch.load(load_model))
+            if 'checkpoint' in load_prednet_model:
+                checkpoint = torch.load(load_model)
+                model_state_dict = checkpoint['state_dict']
+                optimizer_state_dict = checkpoint['optimizer']
+            else:
+                model_state_dict = torch.load(load_model)
+                optimizer_state_dict = None
+            prednet.load_state_dict(model_state_dict)
             print("Existing PredNet model successsfully loaded.")
             prednet_dni = PredNetDNI(prednet)
             prednet_dni.train()
         elif load_dni_model:
             load_model = load_model_fn(load_dni_model)
+            if 'checkpoint' in load_dni_model:
+                checkpoint = torch.load(load_model)
+                print(checkpoint.keys())
+                model_state_dict = checkpoint['state_dict']
+                optimizer_state_dict = checkpoint['optimizer']
+            else:
+                model_state_dict = torch.load(load_model)
+                optimizer_state_dict = None
             prednet_dni = PredNetDNI(prednet)
-            prednet_dni.load_state_dict(torch.load(load_model))
+            prednet_dni.load_state_dict(model_state_dict)
             prednet_dni.train()
-            print("Existing PredNetDNI model successsfully lodaded.")
+            print("Existing PredNetDNI model successsfully loaded.")
         elif load_prednet_model and load_dni_model:
             raise RuntimeError("Cannot load both PredNet model and PredNetDNI model.")
     else:
         raise RuntimeError("Pre-trained PredNet or PredNetDNI model required.")
     print(prednet_dni)
+    pytorch_total_params = sum(p.numel() for p in prednet_dni.parameters() if p.requires_grad)
+    print('Total Trainable Parameters:', pytorch_total_params)
     prednet_dni.cuda()
 
     assert args.mode == "train"
-    train(prednet_dni, args)
+    train(prednet_dni, args, optimizer_state_dict=optimizer_state_dict)
     prednet_dni.eval()
     save_path = os.path.join(args.model_dir, "model.pth")
     torch.save(prednet_dni.cpu().state_dict(), save_path)
