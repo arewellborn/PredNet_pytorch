@@ -65,7 +65,10 @@ def arg_parse():
         "--lr", default=0.001, type=float, metavar="LR", help="initial learning rate"
     )
     parser.add_argument(
-        "--extrap_start_time", default=None, type=int, help="Time step to begin extrapolating from."
+        "--extrap_start_time",
+        default=None,
+        type=int,
+        help="Time step to begin extrapolating from.",
     )
     parser.add_argument(
         "--workers",
@@ -150,10 +153,16 @@ def arg_parse():
         "--seed", default=1234, type=int, help="Random seed for training.",
     )
     parser.add_argument(
-        "--include-datetime", default=True, type=bool, help="Whether to return datetimes from the dataloader.",
+        "--include-datetime",
+        default=True,
+        type=bool,
+        help="Whether to return datetimes from the dataloader.",
     )
     parser.add_argument(
-        "--dni-offset", default=0, type=int, help="Offset DNI output by one step size (default: 0).",
+        "--dni-offset",
+        default=0,
+        type=int,
+        help="Offset DNI output by one step size (default: 0).",
     )
 
     # Container environment
@@ -239,10 +248,13 @@ def train(model, args, optimizer_state_dict=None):
             batch_frames = frameGroup.cuda()
             optimizer.zero_grad()
             _input = prednet_dni(batch_frames, states)
-                        
-            time_seq_correct = [datetime.strptime(str(dt), "%Y%m%d%H%M%S") for dt in datetimes.numpy()[0]]
+
+            time_seq_correct = [
+                datetime.strptime(str(dt), "%Y%m%d%H%M%S")
+                for dt in datetimes.numpy()[0]
+            ]
             time_seq_correct = all(
-                time_seq_correct[i+1] - time_seq_correct[i] == timedelta(minutes=3)
+                time_seq_correct[i + 1] - time_seq_correct[i] == timedelta(minutes=3)
                 for i in range(len(time_seq_correct) - 1)
             )
             sequences_correct.append(time_seq_correct)
@@ -258,7 +270,7 @@ def train(model, args, optimizer_state_dict=None):
             lr_maker.step()
 
             tr_loss += loss.item()
-            if tr_loss > 100 ** 2: # if loss > 50 wpm^2 squared error
+            if tr_loss > 100 ** 2:  # if loss > 50 wpm^2 squared error
                 _worst_losses.append(step)
             sum_trainLoss_in_epoch += loss.item()
             if step % printCircle == (printCircle - 1):
@@ -274,7 +286,7 @@ def train(model, args, optimizer_state_dict=None):
                     )
                 )
                 if not all(sequences_correct):
-                    print('\n\nSequences not correct for above average loss.\n\n')
+                    print("\n\nSequences not correct for above average loss.\n\n")
                 tr_loss = 0.0
                 sequences_correct = []
 
@@ -328,19 +340,19 @@ if __name__ == "__main__":
         if ".pth" in load_model:
             load_model = load_model
         elif ".tar.gz" in load_model:
-            path = load_model.replace('checkpoint', 'model')
+            path = load_model.replace("checkpoint", "model")
             tar = tarfile.open(path, "r:gz")
             outpath = load_model.rsplit("/", 1)[0]
             tar.extractall(path=outpath)
             tar.close()
-            if 'checkpoint' in load_model:
+            if "checkpoint" in load_model:
                 load_model = os.path.join(outpath, "checkpoint")
             else:
                 load_model = os.path.join(outpath, "model.pth")
         else:
             raise RuntimeError("File extension not recognized.")
         return load_model
-    
+
     # Load previous model if path is given
     if load_prednet_model or load_dni_model:
         prednet = PredNet(
@@ -355,10 +367,10 @@ if __name__ == "__main__":
         )
         if load_prednet_model:
             load_model = load_model_fn(load_prednet_model)
-            if 'checkpoint' in load_prednet_model:
+            if "checkpoint" in load_prednet_model:
                 checkpoint = torch.load(load_model)
-                model_state_dict = checkpoint['state_dict']
-                optimizer_state_dict = checkpoint['optimizer']
+                model_state_dict = checkpoint["state_dict"]
+                optimizer_state_dict = checkpoint["optimizer"]
             else:
                 model_state_dict = torch.load(load_model)
                 optimizer_state_dict = None
@@ -368,11 +380,11 @@ if __name__ == "__main__":
             prednet_dni.train()
         elif load_dni_model:
             load_model = load_model_fn(load_dni_model)
-            if 'checkpoint' in load_dni_model:
+            if "checkpoint" in load_dni_model:
                 checkpoint = torch.load(load_model)
                 print(checkpoint.keys())
-                model_state_dict = checkpoint['state_dict']
-                optimizer_state_dict = checkpoint['optimizer']
+                model_state_dict = checkpoint["state_dict"]
+                optimizer_state_dict = checkpoint["optimizer"]
             else:
                 model_state_dict = torch.load(load_model)
                 optimizer_state_dict = None
@@ -385,8 +397,10 @@ if __name__ == "__main__":
     else:
         raise RuntimeError("Pre-trained PredNet or PredNetDNI model required.")
     print(prednet_dni)
-    pytorch_total_params = sum(p.numel() for p in prednet_dni.parameters() if p.requires_grad)
-    print('Total Trainable Parameters:', pytorch_total_params)
+    pytorch_total_params = sum(
+        p.numel() for p in prednet_dni.parameters() if p.requires_grad
+    )
+    print("Total Trainable Parameters:", pytorch_total_params)
     prednet_dni.cuda()
 
     assert args.mode == "train"

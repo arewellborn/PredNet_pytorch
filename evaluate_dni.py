@@ -30,7 +30,10 @@ def arg_parse():
     parser = argparse.ArgumentParser(description=desc)
 
     parser.add_argument(
-        "--mode", default="evaluate", type=str, help="train or evaluate (default: evaluate)"
+        "--mode",
+        default="evaluate",
+        type=str,
+        help="train or evaluate (default: evaluate)",
     )
     parser.add_argument(
         "--load-dni-model",
@@ -49,10 +52,16 @@ def arg_parse():
         help="number of total epochs to run",
     )
     parser.add_argument(
-        "--include-datetime", default=True, type=bool, help="Whether to return datetimes from the dataloader.",
+        "--include-datetime",
+        default=True,
+        type=bool,
+        help="Whether to return datetimes from the dataloader.",
     )
     parser.add_argument(
-        "--dni-offset", default=0, type=int, help="Offset DNI output by one step size (default: 0).",
+        "--dni-offset",
+        default=0,
+        type=int,
+        help="Offset DNI output by one step size (default: 0).",
     )
     parser.add_argument(
         "--checkpoint_file",
@@ -181,9 +190,9 @@ def evaluate(model, args):
         datetimes = datetimes[:, -1]
         additions = list(
             zip(
-                datetimes.cpu().detach().numpy().astype(str), 
-                output.cpu().detach().numpy(), 
-                target.cpu().detach().numpy()
+                datetimes.cpu().detach().numpy().astype(str),
+                output.cpu().detach().numpy(),
+                target.cpu().detach().numpy(),
             )
         )
         prediction_target += additions
@@ -242,7 +251,7 @@ if __name__ == "__main__":
         else:
             raise RuntimeError("File extension not recognized.")
         return load_model
-    
+
     # Load previous model if path is given
     if load_dni_model:
         prednet = PredNet(

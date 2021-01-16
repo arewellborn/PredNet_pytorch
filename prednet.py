@@ -550,13 +550,13 @@ class PredNet(nn.Module):
             """
             A0 = A0_withTimeStep[t, ...]
             output, hidden_states = self.step(A0, hidden_states)
-            
+
             # Return second to last hidden_states to use for DNI predictions
             last_index = num_timesteps - 1
             if (t <= last_index) and (t > last_index - 5):
-#             if t == last_dni_state_index:
+                #             if t == last_dni_state_index:
                 hidden_states_list.append(hidden_states)
-                
+
             output_list.append(output)
             # hidden_states 不需要保留,只需让其在时间步内进行`长江后浪推前浪`式的迭代即可.
 

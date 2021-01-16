@@ -73,7 +73,10 @@ def arg_parse():
         "--lr", default=0.001, type=float, metavar="LR", help="initial learning rate"
     )
     parser.add_argument(
-        "--extrap_start_time", default=None, type=int, help="Time step to begin extrapolating from."
+        "--extrap_start_time",
+        default=None,
+        type=int,
+        help="Time step to begin extrapolating from.",
     )
     parser.add_argument("--momentum", default=0.9, type=float, help="momentum for SGD")
     parser.add_argument(
@@ -143,10 +146,16 @@ def arg_parse():
         help="The step size for image sequences (default: 1)",
     )
     parser.add_argument(
-        "--include-datetime", default=False, type=bool, help="Whether to return datetimes from the dataloader.",
+        "--include-datetime",
+        default=False,
+        type=bool,
+        help="Whether to return datetimes from the dataloader.",
     )
     parser.add_argument(
-        "--dni-offset", default=0, type=int, help="Offset DNI output by one step size (default: 0).",
+        "--dni-offset",
+        default=0,
+        type=int,
+        help="Offset DNI output by one step size (default: 0).",
     )
     parser.add_argument("--shuffle", default=True, type=bool, help="shuffle or not")
     parser.add_argument(
@@ -366,12 +375,12 @@ if __name__ == "__main__":
         if ".pth" in load_model:
             load_model = load_model
         elif ".tar.gz" in load_model:
-            path = load_model.replace('checkpoint', 'model')
+            path = load_model.replace("checkpoint", "model")
             tar = tarfile.open(path, "r:gz")
             outpath = load_model.rsplit("/", 1)[0]
             tar.extractall(path=outpath)
             tar.close()
-            if 'checkpoint' in load_model:
+            if "checkpoint" in load_model:
                 load_model = os.path.join(outpath, "checkpoint")
             else:
                 load_model = os.path.join(outpath, "model.pth")
@@ -393,10 +402,10 @@ if __name__ == "__main__":
         )
         if load_model:
             load_model = load_model_fn(load_model)
-            if 'checkpoint' in load_model:
+            if "checkpoint" in load_model:
                 checkpoint = torch.load(load_model)
-                model_state_dict = checkpoint['state_dict']
-                optimizer_state_dict = checkpoint['optimizer']
+                model_state_dict = checkpoint["state_dict"]
+                optimizer_state_dict = checkpoint["optimizer"]
             else:
                 model_state_dict = torch.load(load_model)
                 optimizer_state_dict = None
@@ -404,10 +413,12 @@ if __name__ == "__main__":
             print("Existing PredNet model successsfully loaded.")
             prednet.train()
         else:
-            raise RuntimeError('Please pass a load_model parameter.')
+            raise RuntimeError("Please pass a load_model parameter.")
     print(prednet)
-    pytorch_total_params = sum(p.numel() for p in prednet.parameters() if p.requires_grad)
-    print('Total Trainable Parameters:', pytorch_total_params)
+    pytorch_total_params = sum(
+        p.numel() for p in prednet.parameters() if p.requires_grad
+    )
+    print("Total Trainable Parameters:", pytorch_total_params)
     prednet.cuda()
 
     assert args.mode == "train"

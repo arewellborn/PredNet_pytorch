@@ -61,7 +61,7 @@ class SequenceGenerator(data.Dataset):
         data_format="channels_first",
         step=1,
         include_datetime=False,
-        dni_offset=0
+        dni_offset=0,
     ):
         super(SequenceGenerator, self).__init__()
         pattern = re.compile(r".*?h5/(.+?)\.h5")
@@ -71,7 +71,7 @@ class SequenceGenerator(data.Dataset):
         self.X = h5f[varName][:]  # X will be like (n_images, cols, rows, channels)
         self.P = h5f["dni"][:]
         if include_datetime:
-            self.D = h5f['datetime'][:]
+            self.D = h5f["datetime"][:]
 
         resList = re.findall(pattern, source_file)
         varName = resList[0]
@@ -98,11 +98,13 @@ class SequenceGenerator(data.Dataset):
         if (
             self.sequence_start_mode == "all"
         ):  # allow for any possible sequence, starting from any frame (如果视频中任意一帧都可以作为起点,只需要确定加上序列长度后的小片段终点是否还属于同一个视频即可)
-            if self.output_mode == 'error':
+            if self.output_mode == "error":
                 self.possible_starts = np.array(
                     [
                         i
-                        for i in range(self.num_samples - (self.step * self.num_timeSteps - 1))
+                        for i in range(
+                            self.num_samples - (self.step * self.num_timeSteps - 1)
+                        )
                         if self.sources[i]
                         == self.sources[i + (self.step * self.num_timeSteps - 1)]
                     ]
@@ -111,9 +113,14 @@ class SequenceGenerator(data.Dataset):
                 self.possible_starts = np.array(
                     [
                         i
-                        for i in range(self.num_samples - (self.step * self.num_timeSteps - 1 + self.dni_offset))
+                        for i in range(
+                            self.num_samples
+                            - (self.step * self.num_timeSteps - 1 + self.dni_offset)
+                        )
                         if self.sources[i]
-                        == self.sources[i + (self.step * self.num_timeSteps - 1 + self.dni_offset)]
+                        == self.sources[
+                            i + (self.step * self.num_timeSteps - 1 + self.dni_offset)
+                        ]
                     ]
                 )
         elif (
@@ -121,10 +128,15 @@ class SequenceGenerator(data.Dataset):
         ):  # create sequences where each unique frame is in at most one sequence
             curr_location = 0
             possible_starts = []
-            while curr_location < self.num_samples - (self.step * self.num_timeSteps - 1 + self.dni_offset):
+            while curr_location < self.num_samples - (
+                self.step * self.num_timeSteps - 1 + self.dni_offset
+            ):
                 if (
                     self.sources[curr_location]
-                    == self.sources[curr_location + (self.step * self.num_timeSteps - 1 + self.dni_offset)]
+                    == self.sources[
+                        curr_location
+                        + (self.step * self.num_timeSteps - 1 + self.dni_offset)
+                    ]
                 ):
                     possible_starts.append(curr_location)
                     curr_location += self.step * self.num_timeSteps + self.dni_offset
@@ -153,9 +165,19 @@ class SequenceGenerator(data.Dataset):
         image_group = self.preprocess(
             self.X[idx : (idx + self.step * self.num_timeSteps) : self.step]
         )
-        dni_data = self.P[idx + self.dni_offset : (idx + self.step * self.num_timeSteps + self.dni_offset) : self.step]
+        dni_data = self.P[
+            idx
+            + self.dni_offset : (
+                idx + self.step * self.num_timeSteps + self.dni_offset
+            ) : self.step
+        ]
         if self.include_datetime:
-            datetime_data = self.D[idx + self.dni_offset : (idx + self.step * self.num_timeSteps + self.dni_offset) : self.step].astype(np.int64)
+            datetime_data = self.D[
+                idx
+                + self.dni_offset : (
+                    idx + self.step * self.num_timeSteps + self.dni_offset
+                ) : self.step
+            ].astype(np.int64)
             return image_group, dni_data, datetime_data
         else:
             return image_group, dni_data
@@ -179,11 +201,17 @@ class SequenceGenerator(data.Dataset):
                 self.X[idx : (idx + self.step * self.num_timeSteps) : self.step]
             )
             all_dni[i] = self.P[
-                idx + self.dni_offset : (idx + self.step * self.num_timeSteps + self.dni_offset) : self.step
+                idx
+                + self.dni_offset : (
+                    idx + self.step * self.num_timeSteps + self.dni_offset
+                ) : self.step
             ]
             if self.include_datetime:
                 all_datetimes[i] = self.D[
-                    idx + self.dni_offset : (idx + self.step * self.num_timeSteps + self.dni_offset) : self.step
+                    idx
+                    + self.dni_offset : (
+                        idx + self.step * self.num_timeSteps + self.dni_offset
+                    ) : self.step
                 ].astype(np.int64)
         if self.include_datetime:
             ret = (X_all, all_dni, all_datetimes)
@@ -219,7 +247,7 @@ class ZcrDataLoader(object):
             self.args.data_format,
             self.args.step,
             self.args.include_datetime,
-            self.args.dni_offset
+            self.args.dni_offset,
         )
         # NOTE: 将drop_last设置为True, 可以删除最后一个不完整的batch(e.g.,当数据集大小不能被batch_size整除时, 最后一个batch的样本数是不够一个batch_size的, 这可能会导致某些要用到上一次结果的代码因为旧size和新size不匹配而报错(PredNet就有这个问题, 故这里将drop_last设置为True))
         dataloader = data.DataLoader(
